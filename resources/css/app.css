@@ -1,0 +1,53 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-primary-50: #f0fdfa;
+    --color-primary-100: #ccfbf1;
+    --color-primary-200: #5eead4;
+    --color-primary-300: #0f766e;
+    --color-primary-400: #115e59;
+
+    --color-secondary-50: #e0f2fe;
+    --color-secondary-100: #bae6fd;
+    --color-secondary-200: #38bdf8;
+    --color-secondary-300: #0284c7;
+    --color-secondary-400: #075985;
+
+    --color-surface-50: #f8fafc;
+    --color-surface-100: #ffffff;
+    --color-surface-200: #e2e8f0;
+    --color-surface-300: #475569;
+    --color-surface-400: #0f172a;
+
+    --color-danger-50: #fee2e2;
+    --color-danger-100: #fca5a5;
+    --color-danger-200: #f87171;
+    --color-danger-300: #dc2626;
+    --color-danger-400: #991b1b;
+
+    --color-success-50: #dcfce7;
+    --color-success-100: #86efac;
+    --color-success-200: #4ade80;
+    --color-success-300: #16a34a;
+    --color-success-400: #166534;
+
+    --color-warning-50: #fef3c7;
+    --color-warning-100: #fde68a;
+    --color-warning-200: #fbbf24;
+    --color-warning-300: #f59e0b;
+    --color-warning-400: #b45309;
+
+    --color-ispu-baik: #16a34a;
+    --color-ispu-sedang: #2563eb;
+    --color-ispu-tidak-sehat: #facc15;
+    --color-ispu-sangat-tidak-sehat: #dc2626;
+    --color-ispu-berbahaya: #111827;
+}
