@@ -65,7 +65,10 @@ KABUPATEN INDRAMAYU</p>
         <div class="h-px bg-primary-50 opacity-50"></div>
 
         <div class="flex flex-col items-center justify-center gap-4 py-6 text-sm text-primary-100 sm:flex-row sm:gap-6">
-            <span class="text-center font-bold">(c) 2026 - Dinas Lingkungan Hidup Kabupaten Indramayu</span>
+            <span class="inline-flex items-center gap-1 text-center font-bold">
+                <i class="ph ph-copyright"></i>
+                <span>2026 - Dinas Lingkungan Hidup Kabupaten Indramayu</span>
+            </span>
             <span class="hidden font-bold sm:inline">-</span>
             <span class="font-medium">In Collaboration With</span>
             <img
