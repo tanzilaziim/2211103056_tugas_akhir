@@ -1,4 +1,4 @@
-<header class="w-full" id="public-header">
+﻿<header class="w-full" id="public-header">
     <div class="flex items-center justify-between bg-surface-50 px-4 py-2 md:px-8">
         <span id="header-date" class="text-xs font-normal uppercase tracking-wide text-surface-300 md:text-sm"></span>
         <div class="flex items-center gap-2">
@@ -11,12 +11,12 @@
         <div class="flex items-center justify-between">
             <a href="{{ route('public.home') }}" class="flex shrink-0 items-center gap-3">
                 <img
-                    src="https://api.builder.io/api/v1/image/assets/TEMP/a77d82ad185c14049f57e41388ca4f716ed1978d?width=160"
+                    src="{{ Vite::asset('resources/assets/images/logo_tup_vertical.png') }}"
                     alt="Logo Telkom University Purwokerto"
                     class="h-14 w-14 object-contain"
                 />
                 <img
-                    src="https://api.builder.io/api/v1/image/assets/TEMP/e29f13991da7ea020633a12d7ff2f7cdf7746722?width=230"
+                    src="{{ Vite::asset('resources/assets/images/logo_dlh.png') }}"
                     alt="Logo DLH"
                     class="h-14 w-20 object-contain"
                 />
@@ -102,3 +102,4 @@
         }
     })();
 </script>
+
