@@ -1,4 +1,4 @@
-﻿<footer class="bg-primary-300 text-white">
+<footer class="bg-primary-300 text-white">
     <div class="mx-auto max-w-screen-xl px-6 pb-0 pt-10 md:px-10">
         <div class="flex flex-col gap-6 pb-10 md:flex-row md:items-start md:gap-12">
             <div class="flex shrink-0 items-start gap-4">
@@ -69,6 +69,11 @@ KABUPATEN INDRAMAYU</p>
                 <i class="ph ph-copyright"></i>
                 <span>2026 - Dinas Lingkungan Hidup Kabupaten Indramayu</span>
             </span>
+            <img
+                src="{{ Vite::asset('resources/assets/images/logo_dlh.png') }}"
+                alt="Logo Dinas Lingkungan Hidup"
+                class="h-6 w-auto object-contain"
+            />
             <span class="hidden font-bold sm:inline">-</span>
             <span class="font-medium">In Collaboration With</span>
             <img
@@ -79,3 +84,4 @@ KABUPATEN INDRAMAYU</p>
         </div>
     </div>
 </footer>
+
