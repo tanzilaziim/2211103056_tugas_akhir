@@ -7,17 +7,24 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-surface-50 text-surface-400 antialiased">
-    <div class="flex min-h-screen">
+    @php
+        $adminPageTitle = trim($__env->yieldContent('admin_page_title')) ?: 'Dashboard';
+        $adminDatasetName = trim($__env->yieldContent('admin_dataset_name')) ?: '2025.zip';
+    @endphp
+
+    <div class="flex min-h-screen bg-surface-50" data-admin-shell>
         @include('components.admin.sidebar')
 
-        <div class="flex min-h-screen flex-1 flex-col">
-            @include('components.admin.header')
+        <div class="flex min-h-screen min-w-0 flex-1 flex-col">
+            @include('components.admin.header', [
+                'pageTitle' => $adminPageTitle,
+                'datasetName' => $adminDatasetName,
+            ])
 
-            <main class="flex-1 p-6 md:p-8">
+            <main class="flex-1 p-4 md:p-6 lg:p-7">
                 @yield('content')
+                @include('components.admin.footer')
             </main>
-
-            @include('components.admin.footer')
         </div>
     </div>
 </body>

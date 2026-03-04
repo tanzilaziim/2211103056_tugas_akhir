@@ -9,4 +9,5 @@ import '@phosphor-icons/web/duotone';
 import './pages/public-prediction';
 
 import './pages/public-actual-data';
+import './pages/admin-layout';
 
