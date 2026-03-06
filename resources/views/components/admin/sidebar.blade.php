@@ -1,7 +1,7 @@
 @php
     $navItems = [
         ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'active' => ['admin.dashboard'], 'icon' => 'ph ph-house'],
-        ['label' => 'Data Aktual', 'route' => null, 'active' => ['admin.actual-data*'], 'icon' => 'ph ph-folder-simple'],
+        ['label' => 'Data Aktual', 'route' => 'admin.actual-data', 'active' => ['admin.actual-data*'], 'icon' => 'ph ph-folder-simple'],
         ['label' => 'LSTM', 'route' => null, 'active' => ['admin.lstm*'], 'icon' => 'ph ph-brain'],
         ['label' => 'Prediksi', 'route' => null, 'active' => ['admin.prediction*'], 'icon' => 'ph ph-chart-bar'],
         ['label' => 'Pengaturan Akun', 'route' => null, 'active' => ['admin.account*'], 'icon' => 'ph ph-gear-six'],
@@ -11,7 +11,7 @@
 <div class="fixed inset-0 z-30 hidden bg-surface-400/40 lg:hidden" data-admin-sidebar-overlay data-admin-sidebar-close></div>
 
 <aside
-    class="fixed inset-y-0 left-0 z-40 flex w-[327px] -translate-x-full flex-col bg-primary-300 text-surface-50 transition-transform duration-300 ease-in-out lg:static lg:z-auto lg:translate-x-0"
+    class="fixed inset-y-0 left-0 z-40 flex w-[327px] -translate-x-full flex-col bg-primary-300 text-surface-50 transition-transform duration-300 ease-in-out lg:static lg:z-auto lg:h-screen lg:shrink-0 lg:translate-x-0 lg:transition-[width,transform]"
     data-admin-sidebar
 >
     <div class="flex items-center gap-3 px-6 pb-6 pt-8">
@@ -55,3 +55,6 @@
         </a>
     </div>
 </aside>
+
+
+

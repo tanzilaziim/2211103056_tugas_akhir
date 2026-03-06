@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Http\Controllers\PublicActualDataController;
 use Illuminate\Http\Request;
@@ -24,4 +24,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
     })->name('login.submit');
 
     Route::view('/dashboard', 'admin.dashboard')->name('dashboard');
+    Route::view('/data-aktual', 'admin.actual-data')->name('actual-data');
 });
+
