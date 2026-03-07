@@ -80,6 +80,37 @@ const create7d = (base, amp, phase, mod) =>
         value: Math.max(0, Math.round(base + Math.sin(i * phase) * amp + ((i * mod) % 10))),
     }));
 
+const addDays = (isoDate, days) => {
+    const date = new Date(`${isoDate}T00:00:00`);
+    date.setDate(date.getDate() + days);
+    return date.toISOString().slice(0, 10);
+};
+
+const buildDateOptions = (anchor, count = 14) =>
+    Array.from({ length: count }, (_, idx) => addDays(anchor, -idx));
+
+const formatShortDate = (isoDate) => {
+    try {
+        return new Date(`${isoDate}T00:00:00`).toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+        });
+    } catch {
+        return isoDate;
+    }
+};
+
+const formatMonthId = (monthStr) => {
+    try {
+        const [year, month] = monthStr.split('-').map(Number);
+        const date = new Date(year, month - 1, 1);
+        return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    } catch {
+        return monthStr;
+    }
+};
+
 const initPredictionPage = () => {
     const root = document.querySelector('[data-page="prediction"]');
     if (!root) return;
@@ -116,9 +147,25 @@ const initPredictionPage = () => {
 
     const pm10TitleEl = document.querySelector('[data-chart-title="pm10"]');
     const pm25TitleEl = document.querySelector('[data-chart-title="pm25"]');
-    const datePickerWrap = document.querySelector('[data-date-picker]');
-    const dateInput = document.querySelector('[data-date-input]');
+    const dateToggle = document.querySelector('[data-date-toggle]');
+    const dateMenu = document.querySelector('[data-date-menu]');
+    const dateCurrent = document.querySelector('[data-date-current]');
+    const datePrev = document.querySelector('[data-date-prev]');
+    const dateNext = document.querySelector('[data-date-next]');
+    const dateList = document.querySelector('[data-date-list]');
+    const dateModeSingle = document.querySelector('[data-date-mode="single"]');
+    const dateModeRange = document.querySelector('[data-date-mode="range"]');
+    const dateModeMonth = document.querySelector('[data-date-mode="month"]');
+    const dateRangeStart = document.querySelector('[data-date-range-start]');
+    const dateRangeEnd = document.querySelector('[data-date-range-end]');
+    const dateRangeApply = document.querySelector('[data-date-range-apply]');
+    const dateMonthInput = document.querySelector('[data-date-month]');
+    const dateMonthApply = document.querySelector('[data-date-month-apply]');
     const dateDisplay = document.querySelector('[data-date-display]');
+    let selectedDate = new Date().toISOString().slice(0, 10);
+    let selectedRangeStart = addDays(selectedDate, -6);
+    let selectedRangeEnd = selectedDate;
+    let selectedMonth = selectedDate.slice(0, 7);
 
     const formatDateId = (date) =>
         date.toLocaleDateString('id-ID', {
@@ -272,30 +319,127 @@ const initPredictionPage = () => {
         setState(pm25TabBtn, activeTab === 'pm25');
     };
 
-    const initDatePicker = () => {
-        if (!(dateInput instanceof HTMLInputElement) || !(dateDisplay instanceof HTMLElement)) return;
+    const getDateMode = () => {
+        if (activePeriod === '7 Hari') return 'range';
+        if (activePeriod === '30 Hari') return 'month';
+        return 'single';
+    };
 
-        const today = new Date();
-        const y = today.getFullYear();
-        const m = String(today.getMonth() + 1).padStart(2, '0');
-        const d = String(today.getDate()).padStart(2, '0');
-        if (!dateInput.value) {
-            dateInput.value = `${y}-${m}-${d}`;
+    const renderDatePicker = () => {
+        if (
+            !(dateDisplay instanceof HTMLElement) ||
+            !(dateModeSingle instanceof HTMLElement) ||
+            !(dateModeRange instanceof HTMLElement) ||
+            !(dateModeMonth instanceof HTMLElement)
+        ) return;
+
+        const mode = getDateMode();
+        dateModeSingle.classList.toggle('hidden', mode !== 'single');
+        dateModeRange.classList.toggle('hidden', mode !== 'range');
+        dateModeMonth.classList.toggle('hidden', mode !== 'month');
+
+        if (mode === 'range') {
+            dateDisplay.textContent = `${formatShortDate(selectedRangeStart)} - ${formatShortDate(selectedRangeEnd)}`;
+            if (dateRangeStart instanceof HTMLInputElement) dateRangeStart.value = selectedRangeStart;
+            if (dateRangeEnd instanceof HTMLInputElement) dateRangeEnd.value = selectedRangeEnd;
+            return;
         }
-        dateDisplay.textContent = formatDateId(new Date(dateInput.value));
 
-        datePickerWrap?.addEventListener('click', () => {
-            if (typeof dateInput.showPicker === 'function') {
-                dateInput.showPicker();
-            } else {
-                dateInput.click();
+        if (mode === 'month') {
+            dateDisplay.textContent = formatMonthId(selectedMonth);
+            if (dateMonthInput instanceof HTMLInputElement) dateMonthInput.value = selectedMonth;
+            return;
+        }
+
+        if (
+            !(dateCurrent instanceof HTMLElement) ||
+            !(datePrev instanceof HTMLButtonElement) ||
+            !(dateNext instanceof HTMLButtonElement) ||
+            !(dateList instanceof HTMLElement)
+        ) return;
+
+        dateDisplay.textContent = formatDateId(new Date(`${selectedDate}T00:00:00`));
+        dateCurrent.textContent = formatDateId(new Date(`${selectedDate}T00:00:00`));
+
+        const options = buildDateOptions(selectedDate, 14);
+        const idx = options.indexOf(selectedDate);
+        datePrev.disabled = idx <= 0;
+        dateNext.disabled = idx < 0 || idx >= options.length - 1;
+
+        dateList.innerHTML = options.map((dateStr) => {
+            const active = dateStr === selectedDate;
+            return `<button type="button" data-date-value="${dateStr}" class="w-full rounded-lg px-3 py-1.5 text-left text-sm transition-colors ${active ? 'bg-primary-300 text-surface-50' : 'text-surface-300 hover:bg-surface-200'}">${formatShortDate(dateStr)}</button>`;
+        }).join('');
+
+        dateList.querySelectorAll('[data-date-value]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const value = btn.getAttribute('data-date-value');
+                if (!value) return;
+                selectedDate = value;
+                dateMenu?.classList.add('hidden');
+                renderDatePicker();
+            });
+        });
+    };
+
+    const initDatePicker = () => {
+        if (!(dateToggle instanceof HTMLButtonElement) || !(dateMenu instanceof HTMLElement)) return;
+
+        dateToggle.addEventListener('click', () => {
+            dateMenu.classList.toggle('hidden');
+        });
+
+        datePrev?.addEventListener('click', () => {
+            const options = buildDateOptions(selectedDate, 14);
+            const idx = options.indexOf(selectedDate);
+            if (idx > 0) {
+                selectedDate = options[idx - 1];
+                renderDatePicker();
             }
         });
 
-        dateInput.addEventListener('change', () => {
-            if (!dateInput.value) return;
-            dateDisplay.textContent = formatDateId(new Date(dateInput.value));
+        dateNext?.addEventListener('click', () => {
+            const options = buildDateOptions(selectedDate, 14);
+            const idx = options.indexOf(selectedDate);
+            if (idx >= 0 && idx < options.length - 1) {
+                selectedDate = options[idx + 1];
+                renderDatePicker();
+            }
         });
+
+        document.addEventListener('click', (event) => {
+            if (!dateMenu.contains(event.target) && !dateToggle.contains(event.target)) {
+                dateMenu.classList.add('hidden');
+            }
+        });
+
+        if (
+            dateRangeApply instanceof HTMLButtonElement &&
+            dateRangeStart instanceof HTMLInputElement &&
+            dateRangeEnd instanceof HTMLInputElement
+        ) {
+            dateRangeApply.addEventListener('click', () => {
+                if (!dateRangeStart.value || !dateRangeEnd.value) return;
+                selectedRangeStart = dateRangeStart.value;
+                selectedRangeEnd = dateRangeEnd.value;
+                dateMenu.classList.add('hidden');
+                renderDatePicker();
+            });
+        }
+
+        if (
+            dateMonthApply instanceof HTMLButtonElement &&
+            dateMonthInput instanceof HTMLInputElement
+        ) {
+            dateMonthApply.addEventListener('click', () => {
+                if (!dateMonthInput.value) return;
+                selectedMonth = dateMonthInput.value;
+                dateMenu.classList.add('hidden');
+                renderDatePicker();
+            });
+        }
+
+        renderDatePicker();
     };
 
     periodButtons.forEach((btn) => {
@@ -303,7 +447,15 @@ const initPredictionPage = () => {
             const period = btn.getAttribute('data-period-btn');
             if (!period || period === activePeriod) return;
             activePeriod = period;
+            if (activePeriod === '7 Hari') {
+                selectedRangeEnd = selectedDate;
+                selectedRangeStart = addDays(selectedDate, -6);
+            }
+            if (activePeriod === '30 Hari') {
+                selectedMonth = selectedDate.slice(0, 7);
+            }
             setActivePeriodButton();
+            renderDatePicker();
             renderSummary();
             renderCharts();
         });

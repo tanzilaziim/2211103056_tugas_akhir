@@ -6,9 +6,10 @@ import '@phosphor-icons/web/light';
 import '@phosphor-icons/web/bold';
 import '@phosphor-icons/web/fill';
 import '@phosphor-icons/web/duotone';
-import './pages/public-prediction';
-
-import './pages/public-actual-data';
-import './pages/admin-layout';
-import './pages/admin-actual-data';
+import './pages/public/prediction';
+import './pages/public/actual-data';
+import './pages/admin/layout';
+import './pages/admin/actual-data';
+import './pages/admin/prediction-data';
+import './pages/admin/prediction-chart';
 

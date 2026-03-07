@@ -3,7 +3,7 @@
         ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'active' => ['admin.dashboard'], 'icon' => 'ph ph-house'],
         ['label' => 'Data Aktual', 'route' => 'admin.actual-data', 'active' => ['admin.actual-data*'], 'icon' => 'ph ph-folder-simple'],
         ['label' => 'LSTM', 'route' => null, 'active' => ['admin.lstm*'], 'icon' => 'ph ph-brain'],
-        ['label' => 'Prediksi', 'route' => null, 'active' => ['admin.prediction*'], 'icon' => 'ph ph-chart-bar'],
+        ['label' => 'Prediksi', 'route' => 'admin.prediction.data', 'active' => ['admin.prediction*'], 'icon' => 'ph ph-chart-bar'],
         ['label' => 'Pengaturan Akun', 'route' => null, 'active' => ['admin.account*'], 'icon' => 'ph ph-gear-six'],
     ];
 @endphp

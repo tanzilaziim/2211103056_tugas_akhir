@@ -3,15 +3,16 @@
 use App\Http\Controllers\PublicActualDataController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Redirect;
 
-Route::view('/', 'public.home')->name('public.home');
-Route::view('/prediksi', 'public.prediction')->name('public.prediction');
-Route::view('/data-aktual', 'public.actual-data')->name('public.actual-data');
-Route::view('/tentang', 'public.about')->name('public.about');
+Route::view('/', 'public.home.index')->name('public.home');
+Route::view('/prediksi', 'public.prediction.index')->name('public.prediction');
+Route::view('/data-aktual', 'public.actual-data.index')->name('public.actual-data');
+Route::view('/tentang', 'public.about.index')->name('public.about');
 Route::get('/api/public/actual-data', PublicActualDataController::class)->name('public.api.actual-data');
 
 Route::prefix('admin')->name('admin.')->group(function () {
-    Route::get('/login', fn () => view('admin.login'))->name('login');
+    Route::get('/login', fn () => view('admin.auth.login'))->name('login');
 
     // Frontend flow sementara: submit login langsung ke dashboard preview.
     Route::post('/login', function (Request $request) {
@@ -23,7 +24,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         return redirect()->route('admin.dashboard');
     })->name('login.submit');
 
-    Route::view('/dashboard', 'admin.dashboard')->name('dashboard');
-    Route::view('/data-aktual', 'admin.actual-data')->name('actual-data');
+    Route::view('/dashboard', 'admin.dashboard.index')->name('dashboard');
+    Route::view('/data-aktual', 'admin.actual-data.index')->name('actual-data');
+    Route::get('/prediksi', fn () => Redirect::route('admin.prediction.data'))->name('prediction');
+    Route::view('/prediksi/data', 'admin.prediction.data')->name('prediction.data');
+    Route::view('/prediksi/grafik', 'admin.prediction.chart')->name('prediction.chart');
 });
 

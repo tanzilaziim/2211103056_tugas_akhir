@@ -41,10 +41,36 @@
                 <button data-range-btn="30 Hari" class="rounded-full px-4 py-1.5 text-sm font-normal text-slate-600 transition-all">30 Hari</button>
             </div>
 
-            <div data-date-picker class="relative inline-flex cursor-pointer items-center gap-2 rounded-full border border-primary-300 bg-white px-4 py-1.5">
-                <i class="ph-bold ph-calendar-check text-2xl text-primary-300"></i>
-                <span data-date-display class="text-sm text-slate-600">13 Februari 2025</span>
-                <input data-date-input type="date" class="pointer-events-none absolute h-0 w-0 opacity-0" aria-hidden="true">
+            <div class="relative">
+                <button type="button" data-date-toggle class="inline-flex items-center gap-2 rounded-full border border-primary-300 bg-white px-4 py-1.5 text-sm text-slate-600 transition-colors hover:bg-primary-50">
+                    <i class="ph-bold ph-calendar-check text-2xl text-primary-300"></i>
+                    <span data-date-display>13 Februari 2025</span>
+                </button>
+                <div data-date-menu class="absolute left-0 top-full z-20 mt-2 hidden w-64 rounded-xl border border-surface-200 bg-surface-100 p-3 shadow-lg">
+                    <div data-date-mode="single">
+                        <div class="mb-2 flex items-center justify-between">
+                            <button type="button" data-date-prev class="rounded-lg p-1 transition-colors hover:bg-surface-200 disabled:cursor-not-allowed disabled:opacity-30">
+                                <i class="ph ph-caret-left text-base text-surface-300"></i>
+                            </button>
+                            <span data-date-current class="text-sm font-medium text-surface-300"></span>
+                            <button type="button" data-date-next class="rounded-lg p-1 transition-colors hover:bg-surface-200 disabled:cursor-not-allowed disabled:opacity-30">
+                                <i class="ph ph-caret-right text-base text-surface-300"></i>
+                            </button>
+                        </div>
+                        <div data-date-list class="max-h-48 space-y-1 overflow-y-auto"></div>
+                    </div>
+                    <div data-date-mode="range" class="hidden space-y-2">
+                        <p class="text-xs font-medium text-surface-300">Pilih rentang 7 hari</p>
+                        <input data-date-range-start type="date" class="w-full rounded-lg border border-surface-200 px-3 py-2 text-sm text-surface-300 outline-none focus:border-primary-300">
+                        <input data-date-range-end type="date" class="w-full rounded-lg border border-surface-200 px-3 py-2 text-sm text-surface-300 outline-none focus:border-primary-300">
+                        <button type="button" data-date-range-apply class="w-full rounded-lg bg-primary-300 px-3 py-2 text-sm font-medium text-surface-50">Terapkan</button>
+                    </div>
+                    <div data-date-mode="month" class="hidden space-y-2">
+                        <p class="text-xs font-medium text-surface-300">Pilih bulan</p>
+                        <input data-date-month type="month" class="w-full rounded-lg border border-surface-200 px-3 py-2 text-sm text-surface-300 outline-none focus:border-primary-300">
+                        <button type="button" data-date-month-apply class="w-full rounded-lg bg-primary-300 px-3 py-2 text-sm font-medium text-surface-50">Terapkan</button>
+                    </div>
+                </div>
             </div>
         </div>
 
