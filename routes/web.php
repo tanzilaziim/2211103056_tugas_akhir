@@ -29,5 +29,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/prediksi', fn () => Redirect::route('admin.prediction.data'))->name('prediction');
     Route::view('/prediksi/data', 'admin.prediction.data')->name('prediction.data');
     Route::view('/prediksi/grafik', 'admin.prediction.chart')->name('prediction.chart');
+    Route::view('/pengaturan-akun', 'admin.account.index')->name('account');
 });
 
