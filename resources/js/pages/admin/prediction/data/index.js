@@ -1,4 +1,4 @@
-import { DATA_BY_RANGE, formatIdDate } from './prediction-shared';
+import { DATA_BY_RANGE, formatIdDate } from '../shared';
 
 const PAGE_SIZE = 12;
 

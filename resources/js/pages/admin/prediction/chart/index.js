@@ -1,5 +1,5 @@
 import { Chart, registerables } from 'chart.js';
-import { PM10_SERIES, PM25_SERIES, formatIdDate, stats } from './prediction-shared';
+import { PM10_SERIES, PM25_SERIES, formatIdDate, stats } from '../shared';
 
 Chart.register(...registerables);
 

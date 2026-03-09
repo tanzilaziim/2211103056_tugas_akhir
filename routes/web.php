@@ -26,7 +26,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     Route::view('/dashboard', 'admin.dashboard.index')->name('dashboard');
     Route::view('/data-aktual', 'admin.actual-data.index')->name('actual-data');
-    Route::view('/lstm', 'admin.lstm.overview')->name('lstm');
+    Route::view('/lstm', 'admin.lstm.index')->name('lstm');
     Route::get('/prediksi', fn () => Redirect::route('admin.prediction.data'))->name('prediction');
     Route::view('/prediksi/data', 'admin.prediction.data')->name('prediction.data');
     Route::view('/prediksi/grafik', 'admin.prediction.chart')->name('prediction.chart');
