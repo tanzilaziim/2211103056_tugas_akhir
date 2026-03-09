@@ -32,11 +32,11 @@
                 <table class="w-full border-separate border-spacing-0">
                     <thead>
                         <tr class="bg-primary-300">
-                            <th class="rounded-tl-[15px] border-l-2 border-t-2 border-primary-300 px-4 py-4 text-left text-lg font-bold text-surface-50">Nama</th>
-                            <th class="border-t-2 border-primary-300 px-4 py-4 text-left text-lg font-bold text-surface-50">Email</th>
-                            <th class="border-t-2 border-primary-300 px-4 py-4 text-left text-lg font-bold text-surface-50">Role</th>
-                            <th class="border-t-2 border-primary-300 px-4 py-4 text-left text-lg font-bold text-surface-50">Last Login</th>
-                            <th class="rounded-tr-[15px] border-r-2 border-t-2 border-primary-300 px-4 py-4 text-left text-lg font-bold text-surface-50">Action</th>
+                            <th class="rounded-tl-xl border-l-2 border-t-2 border-primary-300 px-4 py-3.5 text-left text-base font-bold text-surface-50">Nama</th>
+                            <th class="border-t-2 border-primary-300 px-4 py-3.5 text-left text-base font-bold text-surface-50">Email</th>
+                            <th class="border-t-2 border-primary-300 px-4 py-3.5 text-left text-base font-bold text-surface-50">Role</th>
+                            <th class="border-t-2 border-primary-300 px-4 py-3.5 text-left text-base font-bold text-surface-50">Last Login</th>
+                            <th class="rounded-tr-xl border-r-2 border-t-2 border-primary-300 px-4 py-3.5 text-left text-base font-bold text-surface-50">Action</th>
                         </tr>
                     </thead>
                     <tbody data-account-table-body class="bg-primary-50"></tbody>

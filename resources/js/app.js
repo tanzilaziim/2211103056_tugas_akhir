@@ -10,6 +10,7 @@ import './pages/public/prediction';
 import './pages/public/actual-data';
 import './pages/admin/layout';
 import './pages/admin/actual-data';
+import './pages/admin/lstm-overview';
 import './pages/admin/prediction-data';
 import './pages/admin/prediction-chart';
 import './pages/admin/account-settings';

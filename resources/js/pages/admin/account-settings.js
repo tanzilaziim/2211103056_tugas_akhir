@@ -125,7 +125,7 @@ const initAdminAccountSettings = () => {
         if (!state.accounts.length) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="border-b-2 border-l-2 border-r-2 border-primary-300 px-4 py-8 text-center text-base text-surface-300">Belum ada akun terdaftar</td>
+                    <td colspan="5" class="border-b border-l border-r border-surface-200 bg-primary-50 px-4 py-8 text-center text-base text-surface-300">Belum ada akun terdaftar</td>
                 </tr>
             `;
             return;
@@ -133,17 +133,23 @@ const initAdminAccountSettings = () => {
 
         tableBody.innerHTML = state.accounts.map((account) => `
             <tr>
-                <td class="border-b-2 border-l-2 border-primary-300 px-4 py-3 text-base text-surface-300">${account.name}</td>
-                <td class="border-b-2 border-primary-300 px-4 py-3 text-base text-surface-300">${account.email}</td>
-                <td class="border-b-2 border-primary-300 px-4 py-3 text-base text-surface-300">${account.role}</td>
-                <td class="border-b-2 border-primary-300 px-4 py-3 text-base text-surface-300">${account.lastLogin}</td>
-                <td class="border-b-2 border-r-2 border-primary-300 px-4 py-3">
+                <td class="border-b border-l border-r-0 border-surface-200 bg-primary-50 px-4 py-3.5 text-base text-surface-300">${account.name}</td>
+                <td class="border-b border-surface-200 bg-primary-50 px-4 py-3.5 text-base text-surface-300">${account.email}</td>
+                <td class="border-b border-surface-200 bg-primary-50 px-4 py-3.5 text-base text-surface-300">${account.role}</td>
+                <td class="border-b border-surface-200 bg-primary-50 px-4 py-3.5 text-base text-surface-300">${account.lastLogin}</td>
+                <td class="border-b border-r border-surface-200 bg-primary-50 px-4 py-3.5">
                     <div class="flex items-center gap-3">
-                        <button type="button" data-action="edit" data-id="${account.id}" class="flex h-8 w-8 items-center justify-center rounded-[10px] bg-ispu-tidak-sehat text-surface-50 transition-colors hover:brightness-95">
-                            <i class="ph ph-pencil-simple-line text-base"></i>
+                        <button type="button" data-action="edit" data-id="${account.id}" class="inline-flex items-center gap-2 text-ispu-tidak-sehat transition-opacity hover:opacity-80">
+                            <span class="flex h-8 w-8 items-center justify-center rounded-[10px] bg-ispu-tidak-sehat text-surface-50">
+                                <i class="ph ph-pencil-simple-line text-base"></i>
+                            </span>
+                            <span class="text-base underline">Edit</span>
                         </button>
-                        <button type="button" data-action="delete" data-id="${account.id}" class="flex h-8 w-8 items-center justify-center rounded-[10px] bg-ispu-sangat-tidak-sehat text-surface-50 transition-colors hover:brightness-95">
-                            <i class="ph ph-trash text-base"></i>
+                        <button type="button" data-action="delete" data-id="${account.id}" class="inline-flex items-center gap-2 text-ispu-sangat-tidak-sehat transition-opacity hover:opacity-80">
+                            <span class="flex h-8 w-8 items-center justify-center rounded-[10px] bg-ispu-sangat-tidak-sehat text-surface-50">
+                                <i class="ph ph-trash text-base"></i>
+                            </span>
+                            <span class="text-base underline">Hapus</span>
                         </button>
                     </div>
                 </td>
