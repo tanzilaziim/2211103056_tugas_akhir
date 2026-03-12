@@ -110,5 +110,33 @@
             </div>
         </div>
     </div>
+
+    <div data-account-reset-modal class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 px-4">
+        <div class="w-full max-w-[520px] rounded-[15px] border border-surface-200 bg-surface-100 px-8 py-8 shadow-xl">
+            <h3 class="mb-2 text-2xl font-semibold text-surface-400">Reset Kata Sandi</h3>
+            <p class="mb-5 text-base text-surface-300">
+                Atur ulang kata sandi untuk akun
+                <span data-account-reset-name class="font-semibold text-surface-400"></span>.
+            </p>
+
+            <div class="flex flex-col gap-2">
+                <label class="text-lg font-normal text-surface-300">Kata sandi baru (opsional)</label>
+                <input
+                    data-account-reset-password
+                    type="password"
+                    class="h-14 rounded-[15px] border border-surface-300/50 bg-transparent px-4 text-base text-surface-400 outline-none transition-colors focus:border-primary-300"
+                    placeholder="Kosongkan untuk password sementara otomatis"
+                >
+                <p data-account-reset-error class="hidden text-xs text-ispu-sangat-tidak-sehat"></p>
+            </div>
+
+            <div data-account-reset-result class="mt-4 hidden rounded-xl border border-primary-300/25 bg-primary-50 px-4 py-3 text-sm text-surface-400"></div>
+
+            <div class="mt-7 flex justify-end gap-3">
+                <button type="button" data-account-reset-cancel class="rounded-lg border border-surface-200 px-4 py-2 font-medium text-surface-300 transition-colors hover:bg-surface-200">Batal</button>
+                <button type="button" data-account-reset-confirm class="rounded-lg bg-primary-300 px-4 py-2 font-medium text-surface-50 transition-colors hover:bg-primary-400">Reset</button>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection

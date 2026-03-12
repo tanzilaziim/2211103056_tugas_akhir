@@ -86,7 +86,7 @@
                 </div>
 
                 <div class="flex justify-end">
-                    <a href="#" class="text-base text-primary-300 underline underline-offset-2 transition-colors hover:text-primary-400">Lupa kata sandi?</a>
+                    <span class="text-sm text-surface-300 sm:text-base">Reset kata sandi melalui Super Admin</span>
                 </div>
 
                 <button

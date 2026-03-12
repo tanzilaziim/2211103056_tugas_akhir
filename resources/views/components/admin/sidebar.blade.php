@@ -45,14 +45,17 @@
 
     <div class="px-[13px] pb-8">
         <div class="mb-6 border-t border-surface-50/30"></div>
-        <a
-            href="{{ route('admin.login') }}"
-            data-admin-sidebar-close
-            class="flex w-full items-center gap-4 rounded-[10px] bg-transparent px-5 py-3 text-surface-50 transition-colors duration-150 hover:bg-primary-400/35"
-        >
-            <i class="ph ph-sign-out text-[28px] leading-none"></i>
-            <span class="text-lg font-medium">Keluar</span>
-        </a>
+        <form method="POST" action="{{ route('admin.logout') }}">
+            @csrf
+            <button
+                type="submit"
+                data-admin-sidebar-close
+                class="flex w-full items-center gap-4 rounded-[10px] bg-transparent px-5 py-3 text-surface-50 transition-colors duration-150 hover:bg-primary-400/35"
+            >
+                <i class="ph ph-sign-out text-[28px] leading-none"></i>
+                <span class="text-lg font-medium">Keluar</span>
+            </button>
+        </form>
     </div>
 </aside>
 

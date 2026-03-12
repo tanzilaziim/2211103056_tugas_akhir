@@ -1,30 +1,38 @@
 const ROLE_OPTIONS = ['Super Admin', 'Admin', 'Operator', 'Viewer'];
 
-const formatToday = () =>
-    new Date()
-        .toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-        })
-        .replace(/\//g, '-');
+const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
-const initialAccounts = [
-    { id: 1, name: 'Super Admin DLH', email: 'superadmin@dlhindramayu.id', role: 'Super Admin', lastLogin: '23-03-2026' },
-    { id: 2, name: 'Admin Operasional', email: 'admin.ops@dlhindramayu.id', role: 'Admin', lastLogin: '22-03-2026' },
-    { id: 3, name: 'Admin Data', email: 'admin.data@dlhindramayu.id', role: 'Admin', lastLogin: '21-03-2026' },
-    { id: 4, name: 'Viewer DLH', email: 'viewer@dlhindramayu.id', role: 'Viewer', lastLogin: '20-03-2026' },
-    { id: 5, name: 'Operator Lapangan', email: 'operator@dlhindramayu.id', role: 'Operator', lastLogin: '19-03-2026' },
-];
+const api = async (url, options = {}) => {
+    const response = await fetch(url, {
+        credentials: 'same-origin',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken(),
+            ...(options.headers || {}),
+        },
+        ...options,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const message = payload?.message || payload?.errors?.[Object.keys(payload.errors || {})[0]]?.[0] || 'Terjadi kesalahan.';
+        throw new Error(message);
+    }
+
+    return payload;
+};
 
 const initAdminAccountSettings = () => {
     const root = document.querySelector('[data-page="admin-account-settings"]');
     if (!root) return;
 
     const state = {
-        accounts: [...initialAccounts],
+        accounts: [],
         editId: null,
         deleteId: null,
+        resetId: null,
+        resetDone: false,
         selectedRole: ROLE_OPTIONS[0],
         showRoleMenu: false,
     };
@@ -54,12 +62,21 @@ const initAdminAccountSettings = () => {
     const deleteCancel = root.querySelector('[data-account-delete-cancel]');
     const deleteConfirm = root.querySelector('[data-account-delete-confirm]');
 
+    const resetModal = root.querySelector('[data-account-reset-modal]');
+    const resetName = root.querySelector('[data-account-reset-name]');
+    const resetPassword = root.querySelector('[data-account-reset-password]');
+    const resetError = root.querySelector('[data-account-reset-error]');
+    const resetResult = root.querySelector('[data-account-reset-result]');
+    const resetCancel = root.querySelector('[data-account-reset-cancel]');
+    const resetConfirm = root.querySelector('[data-account-reset-confirm]');
+
     if (
         !tableBody || !addBtn ||
         !formModal || !formTitle || !form || !nameInput || !emailInput || !passwordInput || !formCancel ||
         !errName || !errEmail || !errPassword || !errRole ||
         !roleToggle || !roleLabel || !roleMenu || !roleOptions.length ||
-        !deleteModal || !deleteName || !deleteCancel || !deleteConfirm
+        !deleteModal || !deleteName || !deleteCancel || !deleteConfirm ||
+        !resetModal || !resetName || !resetPassword || !resetError || !resetResult || !resetCancel || !resetConfirm
     ) return;
 
     const clearErrors = () => {
@@ -121,6 +138,33 @@ const initAdminAccountSettings = () => {
         state.deleteId = null;
     };
 
+    const openResetModal = (account) => {
+        state.resetId = account.id;
+        state.resetDone = false;
+        resetName.textContent = ` ${account.name}`;
+        resetPassword.value = '';
+        resetError.textContent = '';
+        resetError.classList.add('hidden');
+        resetResult.textContent = '';
+        resetResult.classList.add('hidden');
+        resetCancel.classList.remove('hidden');
+        resetConfirm.textContent = 'Reset';
+        resetModal.classList.remove('hidden');
+        resetModal.classList.add('flex');
+    };
+
+    const closeResetModal = () => {
+        resetModal.classList.add('hidden');
+        resetModal.classList.remove('flex');
+        state.resetId = null;
+        state.resetDone = false;
+    };
+
+    const refreshAccounts = async () => {
+        const payload = await api('/admin/api/accounts');
+        state.accounts = payload.data || [];
+    };
+
     const renderTable = () => {
         if (!state.accounts.length) {
             tableBody.innerHTML = `
@@ -138,12 +182,18 @@ const initAdminAccountSettings = () => {
                 <td class="border-b border-surface-200 bg-primary-50 px-4 py-3.5 text-base text-surface-300">${account.role}</td>
                 <td class="border-b border-surface-200 bg-primary-50 px-4 py-3.5 text-base text-surface-300">${account.lastLogin}</td>
                 <td class="border-b border-r border-surface-200 bg-primary-50 px-4 py-3.5">
-                    <div class="flex items-center gap-3">
+                    <div class="flex flex-wrap items-center gap-2">
                         <button type="button" data-action="edit" data-id="${account.id}" class="inline-flex items-center gap-2 text-ispu-tidak-sehat transition-opacity hover:opacity-80">
                             <span class="flex h-8 w-8 items-center justify-center rounded-[10px] bg-ispu-tidak-sehat text-surface-50">
                                 <i class="ph ph-pencil-simple-line text-base"></i>
                             </span>
                             <span class="text-base underline">Edit</span>
+                        </button>
+                        <button type="button" data-action="reset" data-id="${account.id}" class="inline-flex items-center gap-2 text-primary-300 transition-opacity hover:opacity-80">
+                            <span class="flex h-8 w-8 items-center justify-center rounded-[10px] bg-primary-300 text-surface-50">
+                                <i class="ph ph-key text-base"></i>
+                            </span>
+                            <span class="text-base underline">Reset</span>
                         </button>
                         <button type="button" data-action="delete" data-id="${account.id}" class="inline-flex items-center gap-2 text-ispu-sangat-tidak-sehat transition-opacity hover:opacity-80">
                             <span class="flex h-8 w-8 items-center justify-center rounded-[10px] bg-ispu-sangat-tidak-sehat text-surface-50">
@@ -171,6 +221,15 @@ const initAdminAccountSettings = () => {
                 if (account) openDeleteModal(account);
             });
         });
+
+        tableBody.querySelectorAll('[data-action="reset"]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const id = Number(button.getAttribute('data-id'));
+                if (Number.isNaN(id)) return;
+                const account = state.accounts.find((item) => item.id === id);
+                if (account) openResetModal(account);
+            });
+        });
     };
 
     addBtn.addEventListener('click', () => openFormModal('add'));
@@ -194,7 +253,7 @@ const initAdminAccountSettings = () => {
         });
     });
 
-    form.addEventListener('submit', (event) => {
+    form.addEventListener('submit', async (event) => {
         event.preventDefault();
         clearErrors();
 
@@ -229,32 +288,86 @@ const initAdminAccountSettings = () => {
 
         if (invalid) return;
 
-        if (state.editId) {
-            state.accounts = state.accounts.map((account) =>
-                account.id === state.editId
-                    ? { ...account, name, email, role }
-                    : account,
-            );
-        } else {
-            state.accounts.push({
-                id: Date.now(),
-                name,
-                email,
-                role,
-                lastLogin: formatToday(),
-            });
-        }
+        try {
+            const payload = { name, email, role };
+            if (password) payload.password = password;
 
-        renderTable();
-        closeFormModal();
+            if (state.editId) {
+                await api(`/admin/api/accounts/${state.editId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(payload),
+                });
+            } else {
+                await api('/admin/api/accounts', {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                });
+            }
+
+            await refreshAccounts();
+            renderTable();
+            closeFormModal();
+        } catch (error) {
+            if (error.message.toLowerCase().includes('email')) setError(errEmail, error.message);
+            else setError(errName, error.message);
+        }
     });
 
     deleteCancel.addEventListener('click', closeDeleteModal);
-    deleteConfirm.addEventListener('click', () => {
+    deleteConfirm.addEventListener('click', async () => {
         if (!state.deleteId) return;
-        state.accounts = state.accounts.filter((account) => account.id !== state.deleteId);
-        renderTable();
-        closeDeleteModal();
+        try {
+            await api(`/admin/api/accounts/${state.deleteId}`, { method: 'DELETE' });
+            await refreshAccounts();
+            renderTable();
+            closeDeleteModal();
+        } catch (error) {
+            window.alert(error.message);
+        }
+    });
+
+    resetCancel.addEventListener('click', closeResetModal);
+    resetConfirm.addEventListener('click', async () => {
+        if (state.resetDone) {
+            closeResetModal();
+            return;
+        }
+
+        if (!state.resetId) return;
+
+        const newPassword = resetPassword.value.trim();
+        resetError.textContent = '';
+        resetError.classList.add('hidden');
+
+        if (newPassword && newPassword.length < 8) {
+            resetError.textContent = 'Kata sandi minimal 8 karakter.';
+            resetError.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const body = newPassword ? { new_password: newPassword } : {};
+            const payload = await api(`/admin/api/accounts/${state.resetId}/reset-password`, {
+                method: 'POST',
+                body: JSON.stringify(body),
+            });
+
+            if (payload.temp_password) {
+                resetResult.textContent = `Reset berhasil. Password sementara: ${payload.temp_password}`;
+            } else {
+                resetResult.textContent = 'Reset kata sandi berhasil.';
+            }
+
+            resetResult.classList.remove('hidden');
+            resetCancel.classList.add('hidden');
+            resetConfirm.textContent = 'Tutup';
+            state.resetDone = true;
+            await refreshAccounts();
+            renderTable();
+        } catch (error) {
+            resetError.textContent = error.message;
+            resetError.classList.remove('hidden');
+        }
     });
 
     formModal.addEventListener('click', (event) => {
@@ -265,6 +378,10 @@ const initAdminAccountSettings = () => {
         if (event.target === deleteModal) closeDeleteModal();
     });
 
+    resetModal.addEventListener('click', (event) => {
+        if (event.target === resetModal) closeResetModal();
+    });
+
     document.addEventListener('click', (event) => {
         if (!roleMenu.contains(event.target) && !roleToggle.contains(event.target)) {
             state.showRoleMenu = false;
@@ -272,7 +389,15 @@ const initAdminAccountSettings = () => {
         }
     });
 
-    renderTable();
+    refreshAccounts()
+        .then(renderTable)
+        .catch((error) => {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="border-b border-l border-r border-surface-200 bg-primary-50 px-4 py-8 text-center text-base text-ispu-sangat-tidak-sehat">${error.message}</td>
+                </tr>
+            `;
+        });
 };
 
 document.addEventListener('DOMContentLoaded', initAdminAccountSettings);
