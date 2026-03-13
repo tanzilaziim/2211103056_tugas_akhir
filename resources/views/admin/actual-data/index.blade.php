@@ -5,6 +5,10 @@
 
 @section('content')
 <div data-page="admin-actual-data" class="min-h-full bg-surface-50">
+    <div data-upload-toast class="pointer-events-none fixed right-4 top-20 z-[60] hidden w-full max-w-sm rounded-xl border px-4 py-3 shadow-lg sm:right-6">
+        <p data-upload-toast-message class="text-sm font-medium"></p>
+    </div>
+
     <div class="mb-6">
         <h1 class="text-3xl font-bold text-surface-400">Data Aktual</h1>
         <p class="mt-1 text-base text-surface-300">Unggah data aktual untuk bahan prediksi</p>
@@ -17,8 +21,9 @@
                     data-drop-zone
                     class="mb-4 flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-surface-300/50 bg-surface-200/50 px-4 py-8 transition-colors duration-200"
                 >
-                    <button type="button" data-btn-choose-file class="rounded-full border border-surface-200 bg-surface-100 px-6 py-2 text-sm text-surface-300 transition-colors hover:bg-surface-50">
-                        Cari File
+                    <button type="button" data-btn-choose-file class="inline-flex max-w-full items-center gap-2 truncate rounded-full border border-surface-200 bg-surface-100 px-6 py-2 text-sm text-surface-300 transition-colors hover:bg-surface-50">
+                        <i class="ph ph-magnifying-glass text-base"></i>
+                        <span class="truncate">Cari File CSV</span>
                     </button>
                     <p class="text-center text-sm text-surface-300">atau drop file dataset disini</p>
                     <input data-file-input type="file" accept=".csv" class="hidden">
@@ -29,7 +34,6 @@
                     <li class="flex items-start gap-2 text-sm text-surface-300"><span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-surface-300"></span>Kolom dataset harus berisi: waktu, pm10, pm2.5</li>
                 </ul>
 
-                <p data-file-name class="mb-3 hidden truncate text-xs text-primary-300"></p>
                 <p data-file-error class="mb-3 hidden text-xs text-danger-300"></p>
 
                 <div class="flex justify-center">
@@ -69,19 +73,7 @@
                             <i class="ph-bold ph-calendar-check text-2xl text-primary-300"></i>
                             <span data-date-display></span>
                         </button>
-
-                        <div data-date-menu class="absolute left-0 top-full z-20 mt-2 hidden w-64 rounded-xl border border-surface-200 bg-surface-100 p-3 shadow-lg">
-                            <div class="mb-2 flex items-center justify-between">
-                                <button type="button" data-date-prev class="rounded-lg p-1 transition-colors hover:bg-surface-200 disabled:cursor-not-allowed disabled:opacity-30">
-                                    <i class="ph ph-caret-left text-base text-surface-300"></i>
-                                </button>
-                                <span data-date-current class="text-sm font-medium text-surface-300"></span>
-                                <button type="button" data-date-next class="rounded-lg p-1 transition-colors hover:bg-surface-200 disabled:cursor-not-allowed disabled:opacity-30">
-                                    <i class="ph ph-caret-right text-base text-surface-300"></i>
-                                </button>
-                            </div>
-                            <div data-date-list class="max-h-48 space-y-1 overflow-y-auto"></div>
-                        </div>
+                        <input data-date-input type="date" class="pointer-events-none absolute opacity-0">
                     </div>
                 </div>
 

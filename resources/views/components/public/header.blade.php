@@ -34,7 +34,7 @@
             </nav>
 
             <div class="flex items-center gap-3">
-                <a href="tel:08121267872" class="hidden items-center gap-2 rounded-full border border-surface-300 px-4 py-2 text-sm text-surface-300 transition-colors hover:bg-surface-50 md:flex">
+                <a href="https://wa.me/6281223967559" target="_blank" rel="noopener noreferrer" class="hidden items-center gap-2 rounded-full border border-surface-300 px-4 py-2 text-sm text-surface-300 transition-colors hover:bg-surface-50 md:flex">
                     <i class="ph ph-phone"></i>
                     <span>PUSAT BANTUAN</span>
                 </a>
@@ -55,7 +55,7 @@
             <a href="{{ route('public.prediction') }}" class="py-1 text-base font-bold {{ request()->routeIs('public.prediction') ? 'text-primary-300' : 'text-surface-300' }}">Prediksi</a>
             <a href="{{ route('public.actual-data') }}" class="py-1 text-base font-bold {{ request()->routeIs('public.actual-data') ? 'text-primary-300' : 'text-surface-300' }}">Data Aktual</a>
             <a href="{{ route('public.about') }}" class="py-1 text-base font-bold {{ request()->routeIs('public.about') ? 'text-primary-300' : 'text-surface-300' }}">Tentang</a>
-            <a href="tel:08121267872" class="flex items-center gap-2 text-sm text-surface-300">
+            <a href="https://wa.me/6281223967559" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 text-sm text-surface-300">
                 <i class="ph ph-phone"></i>
                 <span>PUSAT BANTUAN</span>
             </a>

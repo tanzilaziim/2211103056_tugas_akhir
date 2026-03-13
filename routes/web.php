@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Admin\AccountController;
+use App\Http\Controllers\Admin\ActualDataController;
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\PublicActualDataController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Redirect;
@@ -21,7 +23,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-        Route::view('/dashboard', 'admin.dashboard.index')->name('dashboard');
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::view('/data-aktual', 'admin.actual-data.index')->name('actual-data');
         Route::view('/lstm', 'admin.lstm.index')->name('lstm');
         Route::get('/prediksi', fn () => Redirect::route('admin.prediction.data'))->name('prediction');
@@ -35,6 +37,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('/{user}', [AccountController::class, 'update'])->name('update');
             Route::delete('/{user}', [AccountController::class, 'destroy'])->name('destroy');
             Route::post('/{user}/reset-password', [AccountController::class, 'resetPassword'])->name('reset-password');
+        });
+
+        Route::prefix('/api/actual-data')->name('api.actual-data.')->group(function () {
+            Route::get('/', [ActualDataController::class, 'index'])->name('index');
+            Route::post('/import', [ActualDataController::class, 'import'])->name('import');
         });
     });
 });

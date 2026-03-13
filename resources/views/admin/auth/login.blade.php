@@ -86,7 +86,7 @@
                 </div>
 
                 <div class="flex justify-end">
-                    <span class="text-sm text-surface-300 sm:text-base">Reset kata sandi melalui Super Admin</span>
+                    <span class="text-sm text-danger-300 sm:text-base">*Login sebagai superadmin untuk reset password</span>
                 </div>
 
                 <button

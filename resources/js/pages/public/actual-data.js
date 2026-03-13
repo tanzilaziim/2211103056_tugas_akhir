@@ -83,9 +83,6 @@ const addDays = (isoDate, days) => {
     return date.toISOString().slice(0, 10);
 };
 
-const buildDateOptions = (anchor, count = 30) =>
-    Array.from({ length: count }, (_, idx) => addDays(anchor, -idx));
-
 const formatShortDate = (isoDate) => {
     try {
         return new Date(`${isoDate}T00:00:00`).toLocaleDateString('id-ID', {
@@ -167,6 +164,8 @@ const initActualDataPage = () => {
     let rangeData = fallbackRanges;
 
     let activeRange = '24 Jam';
+    let availableDates = [];
+    let availableMonths = [];
 
     const rangeButtons = Array.from(document.querySelectorAll('[data-range-btn]'));
 
@@ -189,22 +188,20 @@ const initActualDataPage = () => {
 
     const dateToggle = document.querySelector('[data-date-toggle]');
     const dateMenu = document.querySelector('[data-date-menu]');
-    const dateCurrent = document.querySelector('[data-date-current]');
-    const datePrev = document.querySelector('[data-date-prev]');
-    const dateNext = document.querySelector('[data-date-next]');
-    const dateList = document.querySelector('[data-date-list]');
+    const dateSingleInput = document.querySelector('[data-date-single]');
+    const dateSingleApply = document.querySelector('[data-date-single-apply]');
     const dateModeSingle = document.querySelector('[data-date-mode="single"]');
     const dateModeRange = document.querySelector('[data-date-mode="range"]');
     const dateModeMonth = document.querySelector('[data-date-mode="month"]');
     const dateRangeStart = document.querySelector('[data-date-range-start]');
-    const dateRangeEnd = document.querySelector('[data-date-range-end]');
+    const dateRangePreview = document.querySelector('[data-date-range-preview]');
     const dateRangeApply = document.querySelector('[data-date-range-apply]');
     const dateMonthInput = document.querySelector('[data-date-month]');
     const dateMonthApply = document.querySelector('[data-date-month-apply]');
     const dateDisplay = document.querySelector('[data-date-display]');
     let selectedDate = new Date().toISOString().slice(0, 10);
-    let selectedRangeStart = addDays(selectedDate, -6);
-    let selectedRangeEnd = selectedDate;
+    let selectedRangeStart = selectedDate;
+    let selectedRangeEnd = addDays(selectedDate, 6);
     let selectedMonth = selectedDate.slice(0, 7);
 
     const pm10Ctx = document.getElementById('actual-pm10-chart');
@@ -367,9 +364,18 @@ const initActualDataPage = () => {
         });
     };
 
+    const normalizeToAvailableDate = (dateValue) => {
+        if (!availableDates.length) return dateValue;
+        if (availableDates.includes(dateValue)) return dateValue;
+
+        const candidate = availableDates.filter((d) => d <= dateValue).at(-1);
+        return candidate || availableDates[0];
+    };
+
     const fetchRanges = async (dateValue) => {
         try {
-            const query = new URLSearchParams({ date: dateValue });
+            const normalizedDate = normalizeToAvailableDate(dateValue);
+            const query = new URLSearchParams({ date: normalizedDate });
             const response = await fetch(`${apiUrl}?${query.toString()}`, {
                 headers: { Accept: 'application/json' },
             });
@@ -377,7 +383,18 @@ const initActualDataPage = () => {
             if (!response.ok) return;
 
             const payload = await response.json();
+            availableDates = Array.isArray(payload?.available_dates) ? payload.available_dates : [];
+            availableMonths = Array.isArray(payload?.available_months) ? payload.available_months : [];
+            if (typeof payload?.date === 'string' && payload.date) {
+                selectedDate = payload.date;
+            }
+            if (!selectedRangeStart || !availableDates.includes(selectedRangeStart)) {
+                selectedRangeStart = selectedDate;
+            }
+            selectedRangeEnd = addDays(selectedRangeStart, 6);
+            selectedMonth = selectedDate.slice(0, 7);
             rangeData = normalizeRanges(payload?.ranges, fallbackRanges);
+            renderDatePicker();
             renderSummary();
             renderCharts();
         } catch {
@@ -406,47 +423,39 @@ const initActualDataPage = () => {
 
         if (mode === 'range') {
             dateDisplay.textContent = `${formatShortDate(selectedRangeStart)} - ${formatShortDate(selectedRangeEnd)}`;
-            if (dateRangeStart instanceof HTMLInputElement) dateRangeStart.value = selectedRangeStart;
-            if (dateRangeEnd instanceof HTMLInputElement) dateRangeEnd.value = selectedRangeEnd;
+            if (dateRangeStart instanceof HTMLInputElement) {
+                dateRangeStart.value = selectedRangeStart;
+                if (availableDates.length) {
+                    dateRangeStart.min = availableDates[0];
+                    dateRangeStart.max = availableDates[availableDates.length - 1];
+                }
+            }
+            if (dateRangePreview instanceof HTMLElement) {
+                dateRangePreview.textContent = `${formatShortDate(selectedRangeStart)} - ${formatShortDate(selectedRangeEnd)}`;
+            }
             return;
         }
 
         if (mode === 'month') {
             dateDisplay.textContent = formatMonthId(selectedMonth);
-            if (dateMonthInput instanceof HTMLInputElement) dateMonthInput.value = selectedMonth;
+            if (dateMonthInput instanceof HTMLInputElement) {
+                dateMonthInput.value = selectedMonth;
+                if (availableMonths.length) {
+                    dateMonthInput.min = availableMonths[0];
+                    dateMonthInput.max = availableMonths[availableMonths.length - 1];
+                }
+            }
             return;
         }
 
-        if (
-            !(dateCurrent instanceof HTMLElement) ||
-            !(datePrev instanceof HTMLButtonElement) ||
-            !(dateNext instanceof HTMLButtonElement) ||
-            !(dateList instanceof HTMLElement)
-        ) return;
-
         dateDisplay.textContent = formatDateId(new Date(`${selectedDate}T00:00:00`));
-        dateCurrent.textContent = formatDateId(new Date(`${selectedDate}T00:00:00`));
-
-        const options = buildDateOptions(selectedDate, 30);
-        const idx = options.indexOf(selectedDate);
-        datePrev.disabled = idx <= 0;
-        dateNext.disabled = idx < 0 || idx >= options.length - 1;
-
-        dateList.innerHTML = options.map((dateStr) => {
-            const active = dateStr === selectedDate;
-            return `<button type="button" data-date-value="${dateStr}" class="w-full rounded-lg px-3 py-1.5 text-left text-sm transition-colors ${active ? 'bg-primary-300 text-surface-50' : 'text-surface-300 hover:bg-surface-200'}">${formatShortDate(dateStr)}</button>`;
-        }).join('');
-
-        dateList.querySelectorAll('[data-date-value]').forEach((btn) => {
-            btn.addEventListener('click', async () => {
-                const value = btn.getAttribute('data-date-value');
-                if (!value) return;
-                selectedDate = value;
-                dateMenu?.classList.add('hidden');
-                renderDatePicker();
-                await fetchRanges(selectedDate);
-            });
-        });
+        if (dateSingleInput instanceof HTMLInputElement) {
+            dateSingleInput.value = selectedDate;
+            if (availableDates.length) {
+                dateSingleInput.min = availableDates[0];
+                dateSingleInput.max = availableDates[availableDates.length - 1];
+            }
+        }
     };
 
     const initDatePicker = () => {
@@ -456,26 +465,6 @@ const initActualDataPage = () => {
             dateMenu.classList.toggle('hidden');
         });
 
-        datePrev?.addEventListener('click', async () => {
-            const options = buildDateOptions(selectedDate, 30);
-            const idx = options.indexOf(selectedDate);
-            if (idx > 0) {
-                selectedDate = options[idx - 1];
-                renderDatePicker();
-                await fetchRanges(selectedDate);
-            }
-        });
-
-        dateNext?.addEventListener('click', async () => {
-            const options = buildDateOptions(selectedDate, 30);
-            const idx = options.indexOf(selectedDate);
-            if (idx >= 0 && idx < options.length - 1) {
-                selectedDate = options[idx + 1];
-                renderDatePicker();
-                await fetchRanges(selectedDate);
-            }
-        });
-
         document.addEventListener('click', (event) => {
             if (!dateMenu.contains(event.target) && !dateToggle.contains(event.target)) {
                 dateMenu.classList.add('hidden');
@@ -483,14 +472,26 @@ const initActualDataPage = () => {
         });
 
         if (
+            dateSingleApply instanceof HTMLButtonElement &&
+            dateSingleInput instanceof HTMLInputElement
+        ) {
+            dateSingleApply.addEventListener('click', async () => {
+                if (!dateSingleInput.value) return;
+                selectedDate = normalizeToAvailableDate(dateSingleInput.value);
+                dateMenu.classList.add('hidden');
+                renderDatePicker();
+                await fetchRanges(selectedDate);
+            });
+        }
+
+        if (
             dateRangeApply instanceof HTMLButtonElement &&
-            dateRangeStart instanceof HTMLInputElement &&
-            dateRangeEnd instanceof HTMLInputElement
+            dateRangeStart instanceof HTMLInputElement
         ) {
             dateRangeApply.addEventListener('click', async () => {
-                if (!dateRangeStart.value || !dateRangeEnd.value) return;
-                selectedRangeStart = dateRangeStart.value;
-                selectedRangeEnd = dateRangeEnd.value;
+                if (!dateRangeStart.value) return;
+                selectedRangeStart = normalizeToAvailableDate(dateRangeStart.value);
+                selectedRangeEnd = addDays(selectedRangeStart, 6);
                 dateMenu.classList.add('hidden');
                 renderDatePicker();
                 await fetchRanges(selectedRangeEnd);
@@ -503,6 +504,7 @@ const initActualDataPage = () => {
         ) {
             dateMonthApply.addEventListener('click', async () => {
                 if (!dateMonthInput.value) return;
+                if (availableMonths.length && !availableMonths.includes(dateMonthInput.value)) return;
                 selectedMonth = dateMonthInput.value;
                 selectedDate = `${selectedMonth}-01`;
                 dateMenu.classList.add('hidden');
@@ -521,8 +523,8 @@ const initActualDataPage = () => {
 
             activeRange = selected;
             if (activeRange === '7 Hari') {
-                selectedRangeEnd = selectedDate;
-                selectedRangeStart = addDays(selectedDate, -6);
+                selectedRangeStart = selectedDate;
+                selectedRangeEnd = addDays(selectedDate, 6);
             }
             if (activeRange === '30 Hari') {
                 selectedMonth = selectedDate.slice(0, 7);

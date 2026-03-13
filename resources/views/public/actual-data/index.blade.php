@@ -3,30 +3,6 @@
 @section('title', 'Data Aktual')
 
 @section('content')
-@php
-    $pm10Data24h = [
-        ['hour' => 0, 'value' => 30], ['hour' => 1, 'value' => 30], ['hour' => 2, 'value' => 32],
-        ['hour' => 3, 'value' => 32], ['hour' => 4, 'value' => 19], ['hour' => 5, 'value' => 38],
-        ['hour' => 6, 'value' => 15], ['hour' => 7, 'value' => 48], ['hour' => 8, 'value' => 34],
-        ['hour' => 9, 'value' => 27], ['hour' => 10, 'value' => 37], ['hour' => 11, 'value' => 25],
-        ['hour' => 12, 'value' => 42], ['hour' => 13, 'value' => 17], ['hour' => 14, 'value' => 16],
-        ['hour' => 15, 'value' => 44], ['hour' => 16, 'value' => 35], ['hour' => 17, 'value' => 28],
-        ['hour' => 18, 'value' => 32], ['hour' => 19, 'value' => 39], ['hour' => 20, 'value' => 45],
-        ['hour' => 21, 'value' => 25], ['hour' => 22, 'value' => 20], ['hour' => 23, 'value' => 17],
-    ];
-
-    $pm25Data24h = [
-        ['hour' => 0, 'value' => 2], ['hour' => 1, 'value' => 10], ['hour' => 2, 'value' => 9],
-        ['hour' => 3, 'value' => 9], ['hour' => 4, 'value' => 14], ['hour' => 5, 'value' => 5],
-        ['hour' => 6, 'value' => 3], ['hour' => 7, 'value' => 14], ['hour' => 8, 'value' => 11],
-        ['hour' => 9, 'value' => 3], ['hour' => 10, 'value' => 13], ['hour' => 11, 'value' => 13],
-        ['hour' => 12, 'value' => 12], ['hour' => 13, 'value' => 2], ['hour' => 14, 'value' => 15],
-        ['hour' => 15, 'value' => 6], ['hour' => 16, 'value' => 1], ['hour' => 17, 'value' => 3],
-        ['hour' => 18, 'value' => 3], ['hour' => 19, 'value' => 1], ['hour' => 20, 'value' => 14],
-        ['hour' => 21, 'value' => 12], ['hour' => 22, 'value' => 3], ['hour' => 23, 'value' => 3],
-    ];
-@endphp
-
 <div data-page="actual-data" data-api-url="{{ route('public.api.actual-data') }}" class="min-h-screen bg-slate-50 font-[Inter,sans-serif]">
     <main class="mx-auto w-full max-w-[1192px] px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         <div class="mb-8 text-center">
@@ -48,21 +24,14 @@
                 </button>
                 <div data-date-menu class="absolute left-0 top-full z-20 mt-2 hidden w-64 rounded-xl border border-surface-200 bg-surface-100 p-3 shadow-lg">
                     <div data-date-mode="single">
-                        <div class="mb-2 flex items-center justify-between">
-                            <button type="button" data-date-prev class="rounded-lg p-1 transition-colors hover:bg-surface-200 disabled:cursor-not-allowed disabled:opacity-30">
-                                <i class="ph ph-caret-left text-base text-surface-300"></i>
-                            </button>
-                            <span data-date-current class="text-sm font-medium text-surface-300"></span>
-                            <button type="button" data-date-next class="rounded-lg p-1 transition-colors hover:bg-surface-200 disabled:cursor-not-allowed disabled:opacity-30">
-                                <i class="ph ph-caret-right text-base text-surface-300"></i>
-                            </button>
-                        </div>
-                        <div data-date-list class="max-h-48 space-y-1 overflow-y-auto"></div>
+                        <p class="mb-2 text-xs font-medium text-surface-300">Pilih tanggal (24 Jam)</p>
+                        <input data-date-single type="date" class="w-full rounded-lg border border-surface-200 px-3 py-2 text-sm text-surface-300 outline-none focus:border-primary-300">
+                        <button type="button" data-date-single-apply class="mt-2 w-full rounded-lg bg-primary-300 px-3 py-2 text-sm font-medium text-surface-50">Terapkan</button>
                     </div>
                     <div data-date-mode="range" class="hidden space-y-2">
-                        <p class="text-xs font-medium text-surface-300">Pilih rentang 7 hari</p>
+                        <p class="text-xs font-medium text-surface-300">Pilih tanggal awal</p>
                         <input data-date-range-start type="date" class="w-full rounded-lg border border-surface-200 px-3 py-2 text-sm text-surface-300 outline-none focus:border-primary-300">
-                        <input data-date-range-end type="date" class="w-full rounded-lg border border-surface-200 px-3 py-2 text-sm text-surface-300 outline-none focus:border-primary-300">
+                        <p data-date-range-preview class="rounded-lg bg-primary-50 px-3 py-2 text-xs text-surface-300"></p>
                         <button type="button" data-date-range-apply class="w-full rounded-lg bg-primary-300 px-3 py-2 text-sm font-medium text-surface-50">Terapkan</button>
                     </div>
                     <div data-date-mode="month" class="hidden space-y-2">
@@ -146,11 +115,11 @@
                     <p class="mt-1 text-justify text-sm text-slate-600">Untuk akses data secara real-time, anda bisa mengunjungi website Indeks Standar Pencemaran Udara (ISPU) yang disediakan oleh Dinas Lingkungan Hidup Pusat.</p>
                 </div>
             </div>
-            <a href="https://ispu.menlhk.go.id" target="_blank" rel="noopener noreferrer" class="shrink-0 rounded-full bg-primary-300 px-8 py-2.5 text-base font-bold text-slate-50 transition-colors hover:bg-primary-400">Buka Website</a>
+            <a href="https://ispu.menlhk.go.id/webv5/#/peta/KABUPATEN_INDRAMAYU/-6.327040195465088/108.3219985961914" target="_blank" rel="noopener noreferrer" class="shrink-0 rounded-full bg-primary-300 px-8 py-2.5 text-base font-bold text-slate-50 transition-colors hover:bg-primary-400">Buka Website</a>
         </div>
     </main>
 
-    <script id="actual-pm10-data-24h" type="application/json">@json($pm10Data24h)</script>
-    <script id="actual-pm25-data-24h" type="application/json">@json($pm25Data24h)</script>
+    <script id="actual-pm10-data-24h" type="application/json">[]</script>
+    <script id="actual-pm25-data-24h" type="application/json">[]</script>
 </div>
 @endsection
