@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'lstm' => [
+        'python_bin' => env('LSTM_PYTHON_BIN'),
+        'runner_path' => env('LSTM_RUNNER_PATH', 'scripts/lstm_runner.py'),
+    ],
+
 ];

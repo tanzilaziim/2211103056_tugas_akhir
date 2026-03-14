@@ -111,6 +111,8 @@ class ActualDataController extends Controller
                         'duplicate_in_file' => $meta['duplicate_in_file'],
                         'updated_existing' => $meta['updated_existing'],
                         'invalid_rows' => $meta['invalid_rows'],
+                        'pm10_zero_to_null' => $meta['pm10_zero_to_null'],
+                        'pm25_zero_to_null' => $meta['pm25_zero_to_null'],
                     ], JSON_UNESCAPED_UNICODE),
                 ]);
             });
@@ -130,6 +132,8 @@ class ActualDataController extends Controller
                         'duplicate_in_file' => $meta['duplicate_in_file'],
                         'updated_existing' => $meta['updated_existing'],
                         'invalid_rows' => $meta['invalid_rows'],
+                        'pm10_zero_to_null' => $meta['pm10_zero_to_null'],
+                        'pm25_zero_to_null' => $meta['pm25_zero_to_null'],
                     ],
                     ...$payload,
                 ],
@@ -177,6 +181,8 @@ class ActualDataController extends Controller
         $seen = [];
         $duplicateInFile = 0;
         $invalidRows = 0;
+        $pm10ZeroToNull = 0;
+        $pm25ZeroToNull = 0;
         $timestamps = [];
 
         while (($cols = fgetcsv($handle)) !== false) {
@@ -192,8 +198,14 @@ class ActualDataController extends Controller
                 continue;
             }
 
-            $pm10 = $this->toNullableFloat($cols[$pm10Idx] ?? null);
-            $pm25 = $this->toNullableFloat($cols[$pm25Idx] ?? null);
+            [$pm10, $pm10WasZero] = $this->normalizePollutantValue($cols[$pm10Idx] ?? null);
+            [$pm25, $pm25WasZero] = $this->normalizePollutantValue($cols[$pm25Idx] ?? null);
+            if ($pm10WasZero) {
+                $pm10ZeroToNull++;
+            }
+            if ($pm25WasZero) {
+                $pm25ZeroToNull++;
+            }
             $key = $observedAt->format('Y-m-d H:i:s');
 
             if (isset($seen[$key])) {
@@ -233,6 +245,8 @@ class ActualDataController extends Controller
                 'duplicate_in_file' => $duplicateInFile,
                 'updated_existing' => $updatedExisting,
                 'invalid_rows' => $invalidRows,
+                'pm10_zero_to_null' => $pm10ZeroToNull,
+                'pm25_zero_to_null' => $pm25ZeroToNull,
                 'selected_date' => isset($keys[0]) ? substr($keys[0], 0, 10) : null,
             ],
         ];
@@ -266,7 +280,17 @@ class ActualDataController extends Controller
         }
     }
 
-    private function toNullableFloat(mixed $value): ?float
+    private function normalizePollutantValue(mixed $value): array
+    {
+        $parsed = $this->toNullableFloat($value, false);
+        if ($parsed === 0.0) {
+            return [null, true];
+        }
+
+        return [$parsed, false];
+    }
+
+    private function toNullableFloat(mixed $value, bool $zeroAsNull = false): ?float
     {
         if ($value === null) {
             return null;
@@ -282,7 +306,12 @@ class ActualDataController extends Controller
             return null;
         }
 
-        return (float) $normalized;
+        $number = (float) $normalized;
+        if ($zeroAsNull && $number === 0.0) {
+            return null;
+        }
+
+        return $number;
     }
 
     private function buildDatasetPayload(?string $preferredDate = null): array
@@ -322,4 +351,3 @@ class ActualDataController extends Controller
         ];
     }
 }
-

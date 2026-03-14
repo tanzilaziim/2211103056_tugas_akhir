@@ -6,12 +6,6 @@
                         <h2 class="text-2xl font-bold text-surface-400">Jalankan Prediksi</h2>
 
                         <div class="flex flex-wrap items-center gap-3">
-                            <div class="inline-flex items-center rounded-full border border-primary-300 bg-surface-100 p-[3px]">
-                                <button data-control-range="24jam" class="rounded-full bg-primary-300 px-4 py-1.5 text-sm text-surface-50">24 Jam</button>
-                                <button data-control-range="7hari" class="rounded-full px-4 py-1.5 text-sm text-surface-300 hover:text-primary-300">7 Hari</button>
-                                <button data-control-range="30hari" class="rounded-full px-4 py-1.5 text-sm text-surface-300 hover:text-primary-300">30 Hari</button>
-                            </div>
-
                             <div class="relative">
                                 <button type="button" data-date-toggle="control" class="inline-flex items-center gap-2 rounded-full border border-primary-300 bg-surface-100 px-4 py-2 text-sm text-surface-300 transition-colors hover:bg-primary-50">
                                     <i class="ph-bold ph-calendar-check text-2xl text-primary-300"></i>
@@ -51,7 +45,7 @@
                         </button>
 
                         <p class="text-sm leading-5 text-ispu-sangat-tidak-sehat">
-                            *Pilih tanggal dan lama waktu prediksi dengan benar sebelum menekan tombol.
+                            *Pilih bulan prediksi dengan benar sebelum menekan tombol.
                         </p>
                     </div>
                 </div>

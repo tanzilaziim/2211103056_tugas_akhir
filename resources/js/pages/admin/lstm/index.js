@@ -15,14 +15,25 @@ import {
 
 Chart.register(...registerables);
 
+const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+const toUiStatus = (status) => {
+    const value = String(status || '').toLowerCase();
+    if (value === 'success') return 'Success';
+    if (value === 'failed') return 'Failed';
+    if (value === 'running') return 'Running';
+    if (value === 'pending') return 'Pending';
+    return status || '-';
+};
+
 const initLstmOverview = () => {
     const root = document.querySelector('[data-page="admin-lstm-overview"]');
     if (!root) return;
 
-    const baseDate = '2026-01-01';
+    const baseDate = new Date().toISOString().slice(0, 10);
     const state = {
         activeTab: 'overview',
-        controlRange: '24jam',
+        controlRange: '30hari',
         controlDate: { single: baseDate, start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
         tableRange: '24jam',
         tableDate: { single: baseDate, start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
@@ -37,11 +48,13 @@ const initLstmOverview = () => {
         activeRunId: 1,
         page: 1,
         deleteId: null,
+        isRunning: false,
+        toastTimer: null,
+        statusPollTimer: null,
     };
 
     const tabButtons = root.querySelectorAll('[data-lstm-tab]');
     const sections = root.querySelectorAll('[data-lstm-section]');
-    const controlRangeButtons = root.querySelectorAll('[data-control-range]');
     const tableRangeButtons = root.querySelectorAll('[data-table-range]');
     const evalRangeButtons = root.querySelectorAll('[data-eval-range]');
     const logRangeButtons = root.querySelectorAll('[data-log-range]');
@@ -51,6 +64,8 @@ const initLstmOverview = () => {
     const tableBody = root.querySelector('[data-lstm-table-body]');
     const pagination = root.querySelector('[data-lstm-pagination]');
     const activeRunLabel = root.querySelector('[data-active-run-label]');
+    const statusDateText = root.querySelector('[data-status-date]');
+    const statusPill = root.querySelector('[data-status-pill]');
 
     const evalRunToggle = root.querySelector('[data-eval-run-toggle]');
     const evalRunLabel = root.querySelector('[data-eval-run-label]');
@@ -80,15 +95,94 @@ const initLstmOverview = () => {
     const pm25Canvas = document.getElementById('lstm-eval-pm25-chart');
 
     if (
-        !tabButtons.length || !sections.length || !controlRangeButtons.length || !tableRangeButtons.length ||
+        !tabButtons.length || !sections.length || !tableRangeButtons.length ||
         !evalRangeButtons.length || !logRangeButtons.length || !startButton || !logButton || !resultButton || !tableBody || !pagination || !activeRunLabel ||
         !evalRunToggle || !evalRunLabel || !evalRunMenu || !evalRunOptions.length ||
         !logRunToggle || !logRunLabel || !logRunMenu || !logRunOptions.length || !logStepsContainer ||
         !evalPm10Mae || !evalPm10Mse || !evalPm10Rmse || !evalPm10R2 ||
         !evalPm25Mae || !evalPm25Mse || !evalPm25Rmse || !evalPm25R2 ||
-        !deleteModal || !deleteName || !deleteCancel || !deleteConfirm ||
+        !deleteModal || !deleteName || !deleteCancel || !deleteConfirm || !statusDateText || !statusPill ||
         !(pm10Canvas instanceof HTMLCanvasElement) || !(pm25Canvas instanceof HTMLCanvasElement)
     ) return;
+
+    const api = async (url, options = {}) => {
+        const headers = {
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': csrfToken(),
+            ...(options.headers || {}),
+        };
+
+        const response = await fetch(url, {
+            credentials: 'same-origin',
+            ...options,
+            headers,
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload?.message || 'Terjadi kesalahan.');
+        }
+        return payload;
+    };
+
+    const toast = document.createElement('div');
+    toast.className = 'fixed right-4 top-4 z-[70] hidden min-w-[280px] rounded-xl border px-4 py-3 shadow-lg';
+    toast.innerHTML = '<p class="text-sm font-medium" data-toast-text></p>';
+    document.body.appendChild(toast);
+    const toastText = toast.querySelector('[data-toast-text]');
+
+    const showToast = (type, message) => {
+        if (!(toastText instanceof HTMLElement)) return;
+        if (state.toastTimer) clearTimeout(state.toastTimer);
+        toast.classList.remove('hidden', 'border-primary-300/40', 'bg-primary-50', 'border-danger-300/40', 'bg-danger-50');
+        toastText.classList.remove('text-primary-400', 'text-danger-300');
+
+        if (type === 'success') {
+            toast.classList.add('border-primary-300/40', 'bg-primary-50');
+            toastText.classList.add('text-primary-400');
+        } else {
+            toast.classList.add('border-danger-300/40', 'bg-danger-50');
+            toastText.classList.add('text-danger-300');
+        }
+        toastText.textContent = message;
+        state.toastTimer = setTimeout(() => {
+            toast.classList.add('hidden');
+            state.toastTimer = null;
+        }, 3000);
+    };
+
+    const setStatusDisplay = (status, dateText) => {
+        statusDateText.textContent = dateText || '';
+        statusPill.classList.remove('bg-primary-100', 'text-ispu-baik', 'bg-danger-50', 'text-ispu-sangat-tidak-sehat', 'bg-warning-100', 'text-warning-300', 'bg-surface-200', 'text-surface-300');
+        if (status === 'running') {
+            statusPill.textContent = 'Memproses...';
+            statusPill.classList.add('bg-warning-100', 'text-warning-300');
+            return;
+        }
+        if (status === 'success') {
+            statusPill.textContent = 'Sukses';
+            statusPill.classList.add('bg-primary-100', 'text-ispu-baik');
+            return;
+        }
+        if (status === 'failed') {
+            statusPill.textContent = 'Gagal';
+            statusPill.classList.add('bg-danger-50', 'text-ispu-sangat-tidak-sehat');
+            return;
+        }
+        statusPill.textContent = '';
+        statusPill.classList.add('bg-surface-200', 'text-surface-300');
+    };
+
+    const setStartButtonState = () => {
+        if (state.isRunning) {
+            startButton.disabled = true;
+            startButton.classList.add('opacity-80', 'cursor-not-allowed');
+            startButton.innerHTML = '<i class="ph ph-circle-notch animate-spin text-xl"></i>Memprediksi...';
+            return;
+        }
+        startButton.disabled = false;
+        startButton.classList.remove('opacity-80', 'cursor-not-allowed');
+        startButton.innerHTML = '<i class="ph ph-rocket-launch text-xl"></i>Mulai Prediksi';
+    };
 
     const buildEvalChart = (ctx, color, maxTicks = 12) => new Chart(ctx, {
         type: 'line',
@@ -183,15 +277,6 @@ const initLstmOverview = () => {
     };
 
     const renderRanges = () => {
-        controlRangeButtons.forEach((button) => {
-            const value = button.getAttribute('data-control-range');
-            const active = value === state.controlRange;
-            button.classList.toggle('bg-primary-300', active);
-            button.classList.toggle('text-surface-50', active);
-            button.classList.toggle('text-surface-300', !active);
-            button.classList.toggle('hover:text-primary-300', !active);
-        });
-
         tableRangeButtons.forEach((button) => {
             const value = button.getAttribute('data-table-range');
             const active = value === state.tableRange;
@@ -218,6 +303,71 @@ const initLstmOverview = () => {
             button.classList.toggle('text-surface-300', !active);
             button.classList.toggle('hover:text-primary-300', !active);
         });
+    };
+
+    const syncDefaultControlDateFromDataset = async () => {
+        try {
+            const payload = await api('/admin/api/actual-data');
+            const dates = Array.isArray(payload?.data?.dates) ? payload.data.dates.filter(Boolean) : [];
+            if (!dates.length) return;
+
+            const lastDate = String([...dates].sort()[dates.length - 1]);
+            const [year, month] = lastDate.split('-').map(Number);
+            if (!year || !month) return;
+
+            const nextMonthYear = month === 12 ? year + 1 : year;
+            const nextMonthValue = month === 12 ? 1 : month + 1;
+            const nextMonthDate = `${nextMonthYear}-${String(nextMonthValue).padStart(2, '0')}-01`;
+
+            state.controlDate.single = nextMonthDate;
+            state.controlDate.start = nextMonthDate;
+            state.controlDate.end = addDays(nextMonthDate, 6);
+            state.controlDate.month = nextMonthDate.slice(0, 7);
+        } catch (_) {}
+    };
+
+    const syncRuns = async () => {
+        const payload = await api('/admin/api/lstm-runs');
+        const rows = Array.isArray(payload?.data?.runs) ? payload.data.runs : [];
+        state.tableRows = rows.map((row) => ({
+            id: Number(row.id),
+            waktuEksekusi: row.waktu_eksekusi ?? '-',
+            tanggalPrediksi: row.tanggal_prediksi ?? '-',
+            status: toUiStatus(row.status),
+        }));
+        state.activeRunId = Number(payload?.data?.active_run_id) || null;
+        const active = rows.find((row) => Number(row.id) === Number(state.activeRunId));
+        const latest = rows[0] || null;
+        const statusSource = active || latest;
+        const startedAt = statusSource?.waktu_eksekusi || '';
+        const statusRaw = String(statusSource?.status || '').toLowerCase();
+        state.isRunning = statusRaw === 'running';
+        setStatusDisplay(statusRaw, startedAt);
+        setStartButtonState();
+    };
+
+    const stopStatusPolling = () => {
+        if (state.statusPollTimer) {
+            clearInterval(state.statusPollTimer);
+            state.statusPollTimer = null;
+        }
+    };
+
+    const startStatusPolling = () => {
+        stopStatusPolling();
+        state.statusPollTimer = setInterval(async () => {
+            try {
+                await syncRuns();
+                renderTable();
+                const latest = state.tableRows[0];
+                const isStillRunning = !!latest && latest.status === 'Running';
+                state.isRunning = isStillRunning;
+                setStartButtonState();
+                if (!isStillRunning) {
+                    stopStatusPolling();
+                }
+            } catch (_) {}
+        }, 3000);
     };
 
     const renderTable = () => {
@@ -248,7 +398,7 @@ const initLstmOverview = () => {
                     <td class="border-b border-surface-200 bg-primary-50 px-4 py-3.5 text-base text-surface-300">${row.tanggalPrediksi}</td>
                     <td class="border-b border-surface-200 bg-primary-50 px-4 py-3.5 text-base">
                         <div class="flex flex-col gap-1">
-                            <span class="${row.status === 'Success' ? 'text-ispu-baik' : 'text-ispu-sangat-tidak-sehat'}">${row.status}</span>
+                            <span class="${row.status === 'Success' ? 'text-ispu-baik' : row.status === 'Running' ? 'text-warning-300' : 'text-ispu-sangat-tidak-sehat'}">${row.status}</span>
                             ${row.id === state.activeRunId ? '<span class="inline-flex w-fit rounded-full bg-primary-300 px-2 py-0.5 text-xs text-surface-50">Digunakan</span>' : ''}
                         </div>
                     </td>
@@ -263,8 +413,14 @@ const initLstmOverview = () => {
                             <button
                                 type="button"
                                 data-use="${row.id}"
-                                class="rounded-full px-3 py-1 text-xs font-semibold transition-colors ${row.id === state.activeRunId ? 'cursor-default bg-primary-100 text-primary-300' : 'bg-primary-300 text-surface-50 hover:bg-primary-400'}"
-                                ${row.id === state.activeRunId ? 'disabled' : ''}
+                                class="rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                                    row.id === state.activeRunId
+                                        ? 'cursor-default bg-primary-100 text-primary-300'
+                                        : row.status !== 'Success'
+                                            ? 'cursor-not-allowed bg-surface-200 text-surface-300'
+                                            : 'bg-primary-300 text-surface-50 hover:bg-primary-400'
+                                }"
+                                ${row.id === state.activeRunId || row.status !== 'Success' ? 'disabled' : ''}
                             >
                                 ${row.id === state.activeRunId ? 'Digunakan' : 'Gunakan'}
                             </button>
@@ -283,18 +439,25 @@ const initLstmOverview = () => {
         renderActiveRunInfo();
 
         tableBody.querySelectorAll('[data-use]').forEach((button) => {
-            button.addEventListener('click', () => {
+            button.addEventListener('click', async () => {
                 const id = Number(button.getAttribute('data-use'));
                 if (Number.isNaN(id) || id === state.activeRunId) return;
-                state.activeRunId = id;
-                renderTable();
+                try {
+                    await api(`/admin/api/lstm-runs/${id}/activate`, { method: 'POST' });
+                    state.activeRunId = id;
+                    renderTable();
+                    showToast('success', 'Run aktif berhasil diperbarui.');
+                } catch (error) {
+                    showToast('error', error.message);
+                }
             });
         });
 
         tableBody.querySelectorAll('[data-view]').forEach((button) => {
             button.addEventListener('click', () => {
                 const id = Number(button.getAttribute('data-view'));
-                window.alert(`Lihat data prediksi #${id}`);
+                state.activeTab = 'evaluation';
+                renderTabs();
             });
         });
 
@@ -565,16 +728,6 @@ const initLstmOverview = () => {
         });
     });
 
-    controlRangeButtons.forEach((button) => {
-        button.addEventListener('click', () => {
-            const value = button.getAttribute('data-control-range');
-            if (!value) return;
-            state.controlRange = value;
-            renderRanges();
-            renderControlDate?.();
-        });
-    });
-
     tableRangeButtons.forEach((button) => {
         button.addEventListener('click', () => {
             const value = button.getAttribute('data-table-range');
@@ -673,13 +826,39 @@ const initLstmOverview = () => {
         }
     });
 
-    startButton.addEventListener('click', () => {
-        const range = state.controlRange;
-        const ds = state.controlDate;
-        let dateLabel = formatIdDate(ds.single);
-        if (getDateMode(range) === 'range') dateLabel = `${formatShortDate(ds.start)} - ${formatShortDate(ds.end)}`;
-        if (getDateMode(range) === 'month') dateLabel = formatMonthId(ds.month);
-        window.alert(`Memulai prediksi: ${range} - ${dateLabel}`);
+    startButton.addEventListener('click', async () => {
+        if (state.isRunning) return;
+
+        const payload = {
+            range: '30hari',
+            date_month: state.controlDate.month,
+        };
+
+        state.isRunning = true;
+        setStartButtonState();
+        setStatusDisplay('running', new Date().toLocaleString('id-ID'));
+        startStatusPolling();
+
+        try {
+            await api('/admin/api/lstm-runs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            await syncRuns();
+            renderTable();
+            const latest = state.tableRows[0];
+            state.isRunning = !!latest && latest.status === 'Running';
+            setStartButtonState();
+            showToast('success', 'Prediksi masuk antrean dan sedang diproses.');
+        } catch (error) {
+            setStatusDisplay('failed', new Date().toLocaleString('id-ID'));
+            state.isRunning = false;
+            setStartButtonState();
+            stopStatusPolling();
+            showToast('error', error.message);
+        }
     });
 
     logButton.addEventListener('click', () => {
@@ -688,34 +867,56 @@ const initLstmOverview = () => {
     });
 
     resultButton.addEventListener('click', () => {
-        window.alert('Navigasi ke hasil run prediksi akan disiapkan di tahap backend.');
+        state.activeTab = 'evaluation';
+        renderTabs();
     });
 
     deleteCancel.addEventListener('click', closeDeleteModal);
-    deleteConfirm.addEventListener('click', () => {
+    deleteConfirm.addEventListener('click', async () => {
         if (!state.deleteId) return;
-        state.tableRows = state.tableRows.filter((row) => row.id !== state.deleteId);
-        if (state.activeRunId === state.deleteId) {
-            state.activeRunId = state.tableRows[0]?.id ?? null;
+        try {
+            await api(`/admin/api/lstm-runs/${state.deleteId}`, { method: 'DELETE' });
+            state.tableRows = state.tableRows.filter((row) => row.id !== state.deleteId);
+            if (state.activeRunId === state.deleteId) {
+                state.activeRunId = state.tableRows[0]?.id ?? null;
+            }
+            state.page = 1;
+            renderTable();
+            closeDeleteModal();
+            showToast('success', 'Run berhasil dihapus.');
+        } catch (error) {
+            showToast('error', error.message);
         }
-        state.page = 1;
-        renderTable();
-        closeDeleteModal();
     });
 
     deleteModal.addEventListener('click', (event) => {
         if (event.target === deleteModal) closeDeleteModal();
     });
 
-    renderTabs();
-    renderRanges();
-    renderControlDate?.();
-    renderTableDate?.();
-    renderEvalDate?.();
-    renderLogDate?.();
-    renderTable();
-    renderEvaluation();
-    renderLogSteps();
+    window.addEventListener('beforeunload', stopStatusPolling);
+
+    setStartButtonState();
+    setStatusDisplay('pending', '');
+    syncDefaultControlDateFromDataset()
+        .finally(() => {
+            renderTabs();
+            renderRanges();
+            renderControlDate?.();
+            renderTableDate?.();
+            renderEvalDate?.();
+            renderLogDate?.();
+            renderTable();
+            renderEvaluation();
+            renderLogSteps();
+            syncRuns()
+                .then(() => {
+                    renderTable();
+                    if (state.isRunning) {
+                        startStatusPolling();
+                    }
+                })
+                .catch(() => {});
+        });
 };
 
 document.addEventListener('DOMContentLoaded', initLstmOverview);

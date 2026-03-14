@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\ActualDataController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\LstmRunController;
 use App\Http\Controllers\PublicActualDataController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Redirect;
@@ -42,6 +43,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('/api/actual-data')->name('api.actual-data.')->group(function () {
             Route::get('/', [ActualDataController::class, 'index'])->name('index');
             Route::post('/import', [ActualDataController::class, 'import'])->name('import');
+        });
+
+        Route::prefix('/api/lstm-runs')->name('api.lstm-runs.')->group(function () {
+            Route::get('/', [LstmRunController::class, 'index'])->name('index');
+            Route::post('/', [LstmRunController::class, 'store'])->name('store');
+            Route::get('/{lstmRun}', [LstmRunController::class, 'show'])->name('show');
+            Route::post('/{lstmRun}/activate', [LstmRunController::class, 'activate'])->name('activate');
+            Route::delete('/{lstmRun}', [LstmRunController::class, 'destroy'])->name('destroy');
         });
     });
 });
