@@ -22,6 +22,22 @@ const formatShortDate = (isoDate) => {
     }
 };
 
+const HEALTH_COLOR = {
+    baik: '#16A34A',
+    sedang: '#2563EB',
+    tidakSehat: '#FACC15',
+    sangatTidakSehat: '#DC2626',
+    berbahaya: '#111827',
+};
+
+const resolveHealthColor = (value) => {
+    if (value <= 15.5) return HEALTH_COLOR.baik;
+    if (value <= 55.4) return HEALTH_COLOR.sedang;
+    if (value <= 150.4) return HEALTH_COLOR.tidakSehat;
+    if (value <= 250.4) return HEALTH_COLOR.sangatTidakSehat;
+    return HEALTH_COLOR.berbahaya;
+};
+
 const buildDateOptions = (anchor, count = 7) =>
     Array.from({ length: count }, (_, idx) => addDays(anchor, -idx));
 
@@ -150,6 +166,8 @@ const initAdminPredictionChart = () => {
 
         const pm10Stat = stats(PM10_SERIES);
         const pm25Stat = stats(PM25_SERIES);
+        const pm10Color = resolveHealthColor(Number(pm10Stat.avg || 0));
+        const pm25Color = resolveHealthColor(Number(pm25Stat.avg || 0));
 
         chartPm10Avg.textContent = pm10Stat.avg;
         chartPm10Max.textContent = String(pm10Stat.max);
@@ -169,6 +187,10 @@ const initAdminPredictionChart = () => {
 
         pm10Chart.data.datasets[0].data = PM10_SERIES;
         pm25Chart.data.datasets[0].data = PM25_SERIES;
+        pm10Chart.data.datasets[0].borderColor = pm10Color;
+        pm10Chart.data.datasets[0].backgroundColor = pm10Color;
+        pm25Chart.data.datasets[0].borderColor = pm25Color;
+        pm25Chart.data.datasets[0].backgroundColor = pm25Color;
         pm10Chart.update();
         pm25Chart.update();
 

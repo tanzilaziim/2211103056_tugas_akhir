@@ -2,15 +2,12 @@ import { Chart, registerables } from 'chart.js';
 import {
     ITEMS_PER_PAGE,
     MOCK_DATA,
-    EVAL_RUNS,
-    LOG_STEPS,
     addDays,
     formatIdDate,
     formatShortDate,
     formatMonthId,
     buildDateOptions,
     getDateMode,
-    getEvalChartData,
 } from './shared';
 
 Chart.register(...registerables);
@@ -39,18 +36,24 @@ const initLstmOverview = () => {
         tableDate: { single: baseDate, start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
         evalRange: '24jam',
         evalDate: { single: baseDate, start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
-        evalRun: 'run-1',
+        evalRunDate: { single: baseDate, start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
+        evalRun: null,
         logRange: '24jam',
         logDate: { single: baseDate, start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
-        logRun: 'run-1',
-        logOpenSteps: new Set(LOG_STEPS.map((step) => step.number)),
+        logRunDate: { single: baseDate, start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
+        logRun: null,
+        logOpenSteps: new Set(),
         tableRows: [...MOCK_DATA],
         activeRunId: 1,
+        runDetailCache: {},
         page: 1,
         deleteId: null,
         isRunning: false,
         toastTimer: null,
         statusPollTimer: null,
+        statusSessionActive: false,
+        statusRunId: null,
+        runRequestedAtMs: null,
     };
 
     const tabButtons = root.querySelectorAll('[data-lstm-tab]');
@@ -59,6 +62,7 @@ const initLstmOverview = () => {
     const evalRangeButtons = root.querySelectorAll('[data-eval-range]');
     const logRangeButtons = root.querySelectorAll('[data-log-range]');
     const startButton = root.querySelector('[data-start-prediction]');
+    const stopButton = root.querySelector('[data-stop-prediction]');
     const logButton = root.querySelector('[data-go-log]');
     const resultButton = root.querySelector('[data-see-result]');
     const tableBody = root.querySelector('[data-lstm-table-body]');
@@ -66,15 +70,14 @@ const initLstmOverview = () => {
     const activeRunLabel = root.querySelector('[data-active-run-label]');
     const statusDateText = root.querySelector('[data-status-date]');
     const statusPill = root.querySelector('[data-status-pill]');
+    const statusStepText = root.querySelector('[data-status-step]');
 
     const evalRunToggle = root.querySelector('[data-eval-run-toggle]');
     const evalRunLabel = root.querySelector('[data-eval-run-label]');
     const evalRunMenu = root.querySelector('[data-eval-run-menu]');
-    const evalRunOptions = root.querySelectorAll('[data-eval-run-option]');
     const logRunToggle = root.querySelector('[data-log-run-toggle]');
     const logRunLabel = root.querySelector('[data-log-run-label]');
     const logRunMenu = root.querySelector('[data-log-run-menu]');
-    const logRunOptions = root.querySelectorAll('[data-log-run-option]');
     const logStepsContainer = root.querySelector('[data-log-steps]');
 
     const evalPm10Mae = root.querySelector('[data-eval-pm10-mae]');
@@ -85,6 +88,7 @@ const initLstmOverview = () => {
     const evalPm25Mse = root.querySelector('[data-eval-pm25-mse]');
     const evalPm25Rmse = root.querySelector('[data-eval-pm25-rmse]');
     const evalPm25R2 = root.querySelector('[data-eval-pm25-r2]');
+    const evalWindowInfo = root.querySelector('[data-eval-window-info]');
 
     const deleteModal = root.querySelector('[data-lstm-delete-modal]');
     const deleteName = root.querySelector('[data-lstm-delete-name]');
@@ -95,13 +99,13 @@ const initLstmOverview = () => {
     const pm25Canvas = document.getElementById('lstm-eval-pm25-chart');
 
     if (
-        !tabButtons.length || !sections.length || !tableRangeButtons.length ||
-        !evalRangeButtons.length || !logRangeButtons.length || !startButton || !logButton || !resultButton || !tableBody || !pagination || !activeRunLabel ||
-        !evalRunToggle || !evalRunLabel || !evalRunMenu || !evalRunOptions.length ||
-        !logRunToggle || !logRunLabel || !logRunMenu || !logRunOptions.length || !logStepsContainer ||
+        !tabButtons.length || !sections.length ||
+        !evalRangeButtons.length || !startButton || !stopButton || !logButton || !resultButton || !tableBody || !pagination || !activeRunLabel ||
+        !evalRunToggle || !evalRunLabel || !evalRunMenu ||
+        !logRunToggle || !logRunLabel || !logRunMenu || !logStepsContainer ||
         !evalPm10Mae || !evalPm10Mse || !evalPm10Rmse || !evalPm10R2 ||
-        !evalPm25Mae || !evalPm25Mse || !evalPm25Rmse || !evalPm25R2 ||
-        !deleteModal || !deleteName || !deleteCancel || !deleteConfirm || !statusDateText || !statusPill ||
+        !evalPm25Mae || !evalPm25Mse || !evalPm25Rmse || !evalPm25R2 || !evalWindowInfo ||
+        !deleteModal || !deleteName || !deleteCancel || !deleteConfirm || !statusDateText || !statusPill || !statusStepText ||
         !(pm10Canvas instanceof HTMLCanvasElement) || !(pm25Canvas instanceof HTMLCanvasElement)
     ) return;
 
@@ -122,6 +126,49 @@ const initLstmOverview = () => {
             throw new Error(payload?.message || 'Terjadi kesalahan.');
         }
         return payload;
+    };
+
+    const extractRunDate = (waktuEksekusi) => {
+        if (!waktuEksekusi || waktuEksekusi === '-') return null;
+        const datePart = String(waktuEksekusi).split(' ')[0] || '';
+        const [dd, mm, yyyy] = datePart.split('-');
+        if (!dd || !mm || !yyyy) return null;
+        return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+    };
+
+    const formatDateTimeId = (value) => {
+        if (!value) return '-';
+        const dt = new Date(value.replace(' ', 'T'));
+        if (Number.isNaN(dt.getTime())) return value;
+        return new Intl.DateTimeFormat('id-ID', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        }).format(dt);
+    };
+
+    const HEALTH_COLOR = {
+        baik: '#16A34A',
+        sedang: '#2563EB',
+        tidakSehat: '#FACC15',
+        sangatTidakSehat: '#DC2626',
+        berbahaya: '#111827',
+    };
+
+    const resolveHealthColor = (value) => {
+        if (value <= 15.5) return HEALTH_COLOR.baik;
+        if (value <= 55.4) return HEALTH_COLOR.sedang;
+        if (value <= 150.4) return HEALTH_COLOR.tidakSehat;
+        if (value <= 250.4) return HEALTH_COLOR.sangatTidakSehat;
+        return HEALTH_COLOR.berbahaya;
+    };
+
+    const numericAverage = (arr) => {
+        const values = (Array.isArray(arr) ? arr : []).filter((v) => Number.isFinite(Number(v))).map((v) => Number(v));
+        if (values.length === 0) return null;
+        return values.reduce((sum, v) => sum + v, 0) / values.length;
     };
 
     const toast = document.createElement('div');
@@ -150,14 +197,49 @@ const initLstmOverview = () => {
         }, 3000);
     };
 
+    const estimateRunningProgress = () => {
+        if (!state.runRequestedAtMs) {
+            return { step: 'Preprocessing', progress: 5 };
+        }
+
+        const elapsedSec = Math.max(0, Math.floor((Date.now() - state.runRequestedAtMs) / 1000));
+        if (elapsedSec < 3) return { step: 'Preprocessing', progress: Math.min(15, 5 + (elapsedSec * 3)) };
+        if (elapsedSec < 6) return { step: 'Scaling', progress: Math.min(25, 16 + ((elapsedSec - 3) * 3)) };
+        if (elapsedSec < 10) return { step: 'Windowing', progress: Math.min(35, 26 + ((elapsedSec - 6) * 2)) };
+        if (elapsedSec < 30) return { step: 'Training', progress: Math.min(75, 36 + ((elapsedSec - 10) * 2)) };
+        if (elapsedSec < 40) return { step: 'Generate', progress: Math.min(90, 76 + ((elapsedSec - 30) * 2)) };
+        return { step: 'Evaluasi', progress: Math.min(99, 91 + (elapsedSec - 40)) };
+    };
+
     const setStatusDisplay = (status, dateText) => {
-        statusDateText.textContent = dateText || '';
-        statusPill.classList.remove('bg-primary-100', 'text-ispu-baik', 'bg-danger-50', 'text-ispu-sangat-tidak-sehat', 'bg-warning-100', 'text-warning-300', 'bg-surface-200', 'text-surface-300');
-        if (status === 'running') {
-            statusPill.textContent = 'Memproses...';
-            statusPill.classList.add('bg-warning-100', 'text-warning-300');
+        if (!state.statusSessionActive) {
+            statusDateText.textContent = '';
+            statusPill.textContent = '';
+            statusStepText.textContent = '';
+            statusStepText.classList.add('hidden');
+            stopButton.classList.add('hidden');
+            stopButton.classList.remove('inline-flex');
+            stopButton.disabled = true;
+            statusPill.classList.remove('bg-primary-100', 'text-ispu-baik', 'bg-danger-50', 'text-ispu-sangat-tidak-sehat', 'bg-warning-100', 'bg-warning-100/50', 'text-warning-300', 'bg-surface-200', 'text-surface-300');
+            statusPill.classList.add('bg-surface-200', 'text-surface-300');
             return;
         }
+
+        statusDateText.textContent = dateText || '';
+        statusStepText.textContent = '';
+        statusStepText.classList.add('hidden');
+        statusPill.classList.remove('bg-primary-100', 'text-ispu-baik', 'bg-danger-50', 'text-ispu-sangat-tidak-sehat', 'bg-warning-100', 'bg-warning-100/50', 'text-warning-300', 'bg-surface-200', 'text-surface-300');
+        if (status === 'running') {
+            const current = estimateRunningProgress();
+            statusPill.textContent = `Memproses ${current.progress}%`;
+            statusPill.classList.add('bg-warning-100/50', 'text-warning-300');
+            statusStepText.textContent = `Tahap: ${current.step}`;
+            statusStepText.classList.remove('hidden');
+            return;
+        }
+        stopButton.classList.add('hidden');
+        stopButton.classList.remove('inline-flex');
+        stopButton.disabled = true;
         if (status === 'success') {
             statusPill.textContent = 'Sukses';
             statusPill.classList.add('bg-primary-100', 'text-ispu-baik');
@@ -177,11 +259,19 @@ const initLstmOverview = () => {
             startButton.disabled = true;
             startButton.classList.add('opacity-80', 'cursor-not-allowed');
             startButton.innerHTML = '<i class="ph ph-circle-notch animate-spin text-xl"></i>Memprediksi...';
+            stopButton.classList.remove('hidden');
+            stopButton.classList.add('inline-flex');
+            stopButton.disabled = false;
+            stopButton.classList.remove('opacity-70', 'cursor-not-allowed');
             return;
         }
         startButton.disabled = false;
         startButton.classList.remove('opacity-80', 'cursor-not-allowed');
         startButton.innerHTML = '<i class="ph ph-rocket-launch text-xl"></i>Mulai Prediksi';
+        stopButton.classList.add('hidden');
+        stopButton.classList.remove('inline-flex');
+        stopButton.disabled = true;
+        stopButton.classList.add('opacity-70', 'cursor-not-allowed');
     };
 
     const buildEvalChart = (ctx, color, maxTicks = 12) => new Chart(ctx, {
@@ -201,7 +291,10 @@ const initLstmOverview = () => {
                 legend: { display: false },
                 tooltip: {
                     callbacks: {
-                        title: (items) => `Index ${items[0]?.label}`,
+                        title: (items) => {
+                            const label = items[0]?.label ?? '';
+                            return state.evalRange === '24jam' ? `Jam ${label}` : `Tanggal ${label}`;
+                        },
                         label: (item) => `${item.dataset.label}: ${item.parsed.y}`,
                     },
                 },
@@ -227,6 +320,8 @@ const initLstmOverview = () => {
     const getDateStateByScope = (scope) => {
         if (scope === 'control') return state.controlDate;
         if (scope === 'table') return state.tableDate;
+        if (scope === 'evalrun') return state.evalRunDate;
+        if (scope === 'logrun') return state.logRunDate;
         if (scope === 'log') return state.logDate;
         return state.evalDate;
     };
@@ -234,6 +329,8 @@ const initLstmOverview = () => {
     const getRangeByScope = (scope) => {
         if (scope === 'control') return state.controlRange;
         if (scope === 'table') return state.tableRange;
+        if (scope === 'evalrun') return '24jam';
+        if (scope === 'logrun') return '24jam';
         if (scope === 'log') return state.logRange;
         return state.evalRange;
     };
@@ -326,7 +423,7 @@ const initLstmOverview = () => {
         } catch (_) {}
     };
 
-    const syncRuns = async () => {
+    const syncRuns = async ({ syncStatus = true } = {}) => {
         const payload = await api('/admin/api/lstm-runs');
         const rows = Array.isArray(payload?.data?.runs) ? payload.data.runs : [];
         state.tableRows = rows.map((row) => ({
@@ -335,15 +432,134 @@ const initLstmOverview = () => {
             tanggalPrediksi: row.tanggal_prediksi ?? '-',
             status: toUiStatus(row.status),
         }));
+        const availableRunDates = [...new Set(state.tableRows.map((row) => extractRunDate(row.waktuEksekusi)).filter(Boolean))];
+        if (availableRunDates.length > 0 && state.tableDate.single !== 'all' && !availableRunDates.includes(state.tableDate.single)) {
+            state.tableDate.single = availableRunDates[0];
+            renderTableDate?.();
+        }
         state.activeRunId = Number(payload?.data?.active_run_id) || null;
-        const active = rows.find((row) => Number(row.id) === Number(state.activeRunId));
-        const latest = rows[0] || null;
-        const statusSource = active || latest;
-        const startedAt = statusSource?.waktu_eksekusi || '';
-        const statusRaw = String(statusSource?.status || '').toLowerCase();
-        state.isRunning = statusRaw === 'running';
-        setStatusDisplay(statusRaw, startedAt);
-        setStartButtonState();
+        if (syncStatus && state.statusSessionActive) {
+            let statusSource = null;
+            if (state.statusRunId) {
+                statusSource = rows.find((row) => Number(row.id) === Number(state.statusRunId)) || null;
+            }
+            if (!statusSource) {
+                statusSource = rows[0] || null;
+            }
+            const startedAt = statusSource?.waktu_eksekusi || '';
+            const statusRaw = String(statusSource?.status || '').toLowerCase();
+            state.isRunning = statusRaw === 'running';
+            setStatusDisplay(statusRaw, startedAt);
+            setStartButtonState();
+        }
+
+        const fallbackRunId = state.activeRunId || rows[0]?.id || null;
+        if (!state.evalRun || !rows.find((row) => Number(row.id) === Number(state.evalRun))) {
+            state.evalRun = fallbackRunId;
+        }
+        if (!state.logRun || !rows.find((row) => Number(row.id) === Number(state.logRun))) {
+            state.logRun = fallbackRunId;
+        }
+        renderRunMenus();
+    };
+
+    const formatMetricValue = (value) => {
+        if (value === null || value === undefined || Number.isNaN(Number(value))) return '-';
+        return Number(value).toFixed(4);
+    };
+
+    const resolveApiDateParams = (scope) => {
+        const range = getRangeByScope(scope);
+        const ds = getDateStateByScope(scope);
+        const params = new URLSearchParams();
+        params.set('range', range);
+        const mode = getDateMode(range);
+        if (mode === 'single') params.set('date_single', ds.single);
+        if (mode === 'range') {
+            params.set('date_start', ds.start);
+            params.set('date_end', ds.end);
+        }
+        if (mode === 'month') params.set('date_month', ds.month);
+        return params.toString();
+    };
+
+    const getRunDetail = async (runId, scope) => {
+        if (!runId) return null;
+        const query = resolveApiDateParams(scope);
+        const cacheKey = `${runId}:${scope}:${query}`;
+        if (state.runDetailCache[cacheKey]) return state.runDetailCache[cacheKey];
+        const payload = await api(`/admin/api/lstm-runs/${runId}?${query}`);
+        const data = payload?.data ?? null;
+        state.runDetailCache[cacheKey] = data;
+        return data;
+    };
+
+    const renderRunMenus = () => {
+        const evalFilteredRuns = state.tableRows.filter((run) => {
+            if (state.evalRunDate.single === 'all') return true;
+            const runDate = extractRunDate(run.waktuEksekusi);
+            return !!runDate && runDate === state.evalRunDate.single;
+        });
+        const logFilteredRuns = state.tableRows.filter((run) => {
+            if (state.logRunDate.single === 'all') return true;
+            const runDate = extractRunDate(run.waktuEksekusi);
+            return !!runDate && runDate === state.logRunDate.single;
+        });
+
+        const runButtons = state.tableRows.map((run) => {
+            const activeEval = Number(state.evalRun) === Number(run.id);
+            const activeLog = Number(state.logRun) === Number(run.id);
+            const label = `${run.id} - ${run.waktuEksekusi}`;
+            return { run, activeEval, activeLog, label };
+        });
+        const evalButtons = evalFilteredRuns.map((run) => {
+            const activeEval = Number(state.evalRun) === Number(run.id);
+            const label = `${run.id} - ${run.waktuEksekusi}`;
+            return { run, activeEval, label };
+        });
+        const logButtons = logFilteredRuns.map((run) => {
+            const activeLog = Number(state.logRun) === Number(run.id);
+            const label = `${run.id} - ${run.waktuEksekusi}`;
+            return { run, activeLog, label };
+        });
+
+        if (runButtons.length === 0) {
+            evalRunLabel.textContent = 'Belum ada run';
+            logRunLabel.textContent = 'Belum ada run';
+            evalRunMenu.innerHTML = '<div class="px-3 py-2 text-sm text-surface-300">Belum ada run.</div>';
+            logRunMenu.innerHTML = '<div class="px-3 py-2 text-sm text-surface-300">Belum ada run.</div>';
+            return;
+        }
+
+        if (evalButtons.length === 0) {
+            state.evalRun = null;
+            evalRunLabel.textContent = 'Tidak ada run di tanggal ini';
+            evalRunMenu.innerHTML = '<div class="px-3 py-2 text-sm text-surface-300">Tidak ada run di tanggal ini.</div>';
+        } else {
+            if (!evalButtons.some((item) => Number(item.run.id) === Number(state.evalRun))) {
+                state.evalRun = evalButtons[0].run.id;
+            }
+            const selectedEval = evalButtons.find((item) => Number(item.run.id) === Number(state.evalRun)) || evalButtons[0];
+            evalRunLabel.textContent = selectedEval.label;
+            evalRunMenu.innerHTML = evalButtons.map(({ run, activeEval, label }) => `
+                <button type="button" data-eval-run-option="${run.id}" class="block w-full rounded-lg px-3 py-2 text-left text-sm ${activeEval ? 'bg-primary-50 text-primary-300' : 'text-surface-300 hover:bg-surface-200'}">${label}</button>
+            `).join('');
+        }
+
+        if (logButtons.length === 0) {
+            state.logRun = null;
+            logRunLabel.textContent = 'Tidak ada run di tanggal ini';
+            logRunMenu.innerHTML = '<div class="px-3 py-2 text-sm text-surface-300">Tidak ada run di tanggal ini.</div>';
+        } else {
+            if (!logButtons.some((item) => Number(item.run.id) === Number(state.logRun))) {
+                state.logRun = logButtons[0].run.id;
+            }
+            const selectedLog = logButtons.find((item) => Number(item.run.id) === Number(state.logRun)) || logButtons[0];
+            logRunLabel.textContent = selectedLog.label;
+            logRunMenu.innerHTML = logButtons.map(({ run, activeLog, label }) => `
+                <button type="button" data-log-run-option="${run.id}" class="block w-full rounded-lg px-3 py-2 text-left text-sm ${activeLog ? 'bg-primary-50 text-primary-300' : 'text-surface-300 hover:bg-surface-200'}">${label}</button>
+            `).join('');
+        }
     };
 
     const stopStatusPolling = () => {
@@ -357,10 +573,12 @@ const initLstmOverview = () => {
         stopStatusPolling();
         state.statusPollTimer = setInterval(async () => {
             try {
-                await syncRuns();
+                await syncRuns({ syncStatus: true });
                 renderTable();
-                const latest = state.tableRows[0];
-                const isStillRunning = !!latest && latest.status === 'Running';
+                const tracked = state.statusRunId
+                    ? state.tableRows.find((row) => Number(row.id) === Number(state.statusRunId))
+                    : state.tableRows[0];
+                const isStillRunning = !!tracked && tracked.status === 'Running';
                 state.isRunning = isStillRunning;
                 setStartButtonState();
                 if (!isStillRunning) {
@@ -368,6 +586,14 @@ const initLstmOverview = () => {
                 }
             } catch (_) {}
         }, 3000);
+    };
+
+    const getCurrentRunningRow = () => {
+        if (state.statusRunId) {
+            const tracked = state.tableRows.find((row) => Number(row.id) === Number(state.statusRunId));
+            if (tracked && tracked.status === 'Running') return tracked;
+        }
+        return state.tableRows.find((row) => row.status === 'Running') || null;
     };
 
     const renderTable = () => {
@@ -380,15 +606,27 @@ const initLstmOverview = () => {
             activeRunLabel.textContent = `#${active.id} - ${active.waktuEksekusi}`;
         };
 
-        const totalPages = Math.max(1, Math.ceil(state.tableRows.length / ITEMS_PER_PAGE));
+        const filteredRows = state.tableDate.single === 'all'
+            ? state.tableRows
+            : state.tableRows.filter((row) => {
+                const runDate = extractRunDate(row.waktuEksekusi);
+                if (!runDate) return false;
+                return runDate === state.tableDate.single;
+            });
+
+        const totalPages = Math.max(1, Math.ceil(filteredRows.length / ITEMS_PER_PAGE));
         state.page = Math.min(state.page, totalPages);
         const start = (state.page - 1) * ITEMS_PER_PAGE;
-        const pageRows = state.tableRows.slice(start, start + ITEMS_PER_PAGE);
+        const pageRows = filteredRows.slice(start, start + ITEMS_PER_PAGE);
 
         if (!pageRows.length) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="border-b-2 border-l-2 border-r-2 border-surface-200 px-4 py-8 text-center text-base text-surface-300">Belum ada output prediksi.</td>
+                    <td colspan="5" class="border-b-2 border-l-2 border-r-2 border-surface-200 px-4 py-8 text-center text-base text-surface-300">${
+                        state.tableDate.single === 'all'
+                            ? 'Belum ada output prediksi.'
+                            : 'Tidak ada output prediksi pada tanggal ini.'
+                    }</td>
                 </tr>
             `;
         } else {
@@ -403,10 +641,14 @@ const initLstmOverview = () => {
                         </div>
                     </td>
                     <td class="border-b border-surface-200 bg-primary-50 px-4 py-3.5">
-                        <button type="button" data-view="${row.id}" class="inline-flex items-center gap-1.5 text-base text-surface-300 underline transition-colors hover:text-primary-300">
-                            <i class="ph ph-file text-xl text-primary-300"></i>
-                            Lihat
-                        </button>
+                        ${
+                            row.status === 'Failed'
+                                ? '<span class="text-sm text-surface-300">-</span>'
+                                : `<button type="button" data-view="${row.id}" class="inline-flex items-center gap-1.5 text-base text-surface-300 underline transition-colors hover:text-primary-300">
+                                    <i class="ph ph-file text-xl text-primary-300"></i>
+                                    Lihat
+                                </button>`
+                        }
                     </td>
                     <td class="border-b border-r border-surface-200 bg-primary-50 px-4 py-3.5">
                         <div class="flex flex-wrap items-center gap-2">
@@ -446,6 +688,7 @@ const initLstmOverview = () => {
                     await api(`/admin/api/lstm-runs/${id}/activate`, { method: 'POST' });
                     state.activeRunId = id;
                     renderTable();
+                    renderRunMenus();
                     showToast('success', 'Run aktif berhasil diperbarui.');
                 } catch (error) {
                     showToast('error', error.message);
@@ -456,6 +699,13 @@ const initLstmOverview = () => {
         tableBody.querySelectorAll('[data-view]').forEach((button) => {
             button.addEventListener('click', () => {
                 const id = Number(button.getAttribute('data-view'));
+                if (!Number.isNaN(id)) {
+                    state.evalRun = id;
+                    state.logRun = id;
+                    renderRunMenus();
+                    renderEvaluation();
+                    renderLogSteps();
+                }
                 state.activeTab = 'evaluation';
                 renderTabs();
             });
@@ -489,101 +739,147 @@ const initLstmOverview = () => {
         });
     };
 
-    const renderEvaluation = () => {
-        const run = EVAL_RUNS[state.evalRun] || EVAL_RUNS['run-1'];
-        evalRunLabel.textContent = run.label;
+    const renderEvaluation = async () => {
+        if (!state.evalRun) {
+            evalPm10Mae.textContent = '-';
+            evalPm10Mse.textContent = '-';
+            evalPm10Rmse.textContent = '-';
+            evalPm10R2.textContent = '-';
+            evalPm25Mae.textContent = '-';
+            evalPm25Mse.textContent = '-';
+            evalPm25Rmse.textContent = '-';
+            evalPm25R2.textContent = '-';
+            pm10Chart.data.labels = [];
+            pm10Chart.data.datasets[0].data = [];
+            pm10Chart.data.datasets[1].data = [];
+            pm10Chart.update();
+            pm25Chart.data.labels = [];
+            pm25Chart.data.datasets[0].data = [];
+            pm25Chart.data.datasets[1].data = [];
+            pm25Chart.update();
+            evalWindowInfo.textContent = 'Rentang data: -';
+            return;
+        }
+        try {
+            const data = await getRunDetail(state.evalRun, 'evaluation');
+            const metricPm10 = data?.metrics?.pm10 ?? null;
+            const metricPm25 = data?.metrics?.pm25 ?? null;
+            const chart = data?.chart ?? null;
 
-        evalPm10Mae.textContent = run.metrics.pm10.mae;
-        evalPm10Mse.textContent = run.metrics.pm10.mse;
-        evalPm10Rmse.textContent = run.metrics.pm10.rmse;
-        evalPm10R2.textContent = run.metrics.pm10.r2;
+            evalPm10Mae.textContent = formatMetricValue(metricPm10?.mae);
+            evalPm10Mse.textContent = formatMetricValue(metricPm10?.mse);
+            evalPm10Rmse.textContent = formatMetricValue(metricPm10?.rmse);
+            evalPm10R2.textContent = formatMetricValue(metricPm10?.r2);
 
-        evalPm25Mae.textContent = run.metrics.pm25.mae;
-        evalPm25Mse.textContent = run.metrics.pm25.mse;
-        evalPm25Rmse.textContent = run.metrics.pm25.rmse;
-        evalPm25R2.textContent = run.metrics.pm25.r2;
+            evalPm25Mae.textContent = formatMetricValue(metricPm25?.mae);
+            evalPm25Mse.textContent = formatMetricValue(metricPm25?.mse);
+            evalPm25Rmse.textContent = formatMetricValue(metricPm25?.rmse);
+            evalPm25R2.textContent = formatMetricValue(metricPm25?.r2);
 
-        const chartData = getEvalChartData(state.evalRange, state.evalRun);
-        const maxTicks = state.evalRange === '30hari' ? 10 : 12;
+            pm10Chart.data.labels = chart?.labels || [];
+            pm10Chart.data.datasets[0].data = chart?.pm10?.actual || [];
+            pm10Chart.data.datasets[1].data = chart?.pm10?.predicted || [];
+            {
+                const pm10Avg = numericAverage(chart?.pm10?.predicted) ?? numericAverage(chart?.pm10?.actual) ?? 0;
+                const pm10Color = resolveHealthColor(pm10Avg);
+                pm10Chart.data.datasets[0].borderColor = pm10Color;
+                pm10Chart.data.datasets[0].backgroundColor = pm10Color;
+                pm10Chart.data.datasets[1].borderColor = pm10Color;
+                pm10Chart.data.datasets[1].backgroundColor = pm10Color;
+            }
+            pm10Chart.update();
 
-        pm10Chart.data.labels = chartData.pm10.labels;
-        pm10Chart.data.datasets[0].data = chartData.pm10.actual;
-        pm10Chart.data.datasets[1].data = chartData.pm10.predicted;
-        pm10Chart.options.scales.x.ticks.maxTicksLimit = maxTicks;
-        pm10Chart.update();
+            pm25Chart.data.labels = chart?.labels || [];
+            pm25Chart.data.datasets[0].data = chart?.pm25?.actual || [];
+            pm25Chart.data.datasets[1].data = chart?.pm25?.predicted || [];
+            {
+                const pm25Avg = numericAverage(chart?.pm25?.predicted) ?? numericAverage(chart?.pm25?.actual) ?? 0;
+                const pm25Color = resolveHealthColor(pm25Avg);
+                pm25Chart.data.datasets[0].borderColor = pm25Color;
+                pm25Chart.data.datasets[0].backgroundColor = pm25Color;
+                pm25Chart.data.datasets[1].borderColor = pm25Color;
+                pm25Chart.data.datasets[1].backgroundColor = pm25Color;
+            }
+            pm25Chart.update();
 
-        pm25Chart.data.labels = chartData.pm25.labels;
-        pm25Chart.data.datasets[0].data = chartData.pm25.actual;
-        pm25Chart.data.datasets[1].data = chartData.pm25.predicted;
-        pm25Chart.options.scales.x.ticks.maxTicksLimit = maxTicks;
-        pm25Chart.update();
+            const windowStart = data?.window?.start ?? null;
+            const windowEnd = data?.window?.end ?? null;
+            evalWindowInfo.textContent = `Rentang data: ${formatDateTimeId(windowStart)} - ${formatDateTimeId(windowEnd)}`;
+        } catch (_) {}
     };
 
-    const renderLogSteps = () => {
-        const run = EVAL_RUNS[state.logRun] || EVAL_RUNS['run-1'];
-        logRunLabel.textContent = run.label;
+    const renderLogSteps = async () => {
+        if (!state.logRun) {
+            logStepsContainer.innerHTML = '<div class="rounded-lg border border-surface-200 bg-surface-100 p-4 text-sm text-surface-300">Tidak ada run di tanggal ini.</div>';
+            return;
+        }
+        try {
+            const data = await getRunDetail(state.logRun, 'log');
+            const steps = Array.isArray(data?.steps) ? data.steps : [];
+            if (steps.length === 0) {
+                logStepsContainer.innerHTML = '<div class="rounded-lg border border-surface-200 bg-surface-100 p-4 text-sm text-surface-300">Detail proses belum tersedia.</div>';
+                return;
+            }
 
-        logStepsContainer.innerHTML = LOG_STEPS.map((step, idx) => {
-            const isOpen = state.logOpenSteps.has(step.number);
-            const statCards = step.statCards?.length
-                ? `<div class="grid gap-3 ${step.statCards.some((card) => card.wide) ? 'grid-cols-2' : step.statCards.length === 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'}">
-                    ${step.statCards.map((card) => `
-                        <div class="${card.wide ? 'col-span-2' : 'col-span-1'} rounded-[15px] border border-surface-200 bg-primary-50 p-4">
-                            <p class="text-sm font-bold text-surface-300 sm:text-base">${card.label}</p>
-                            <p class="text-sm font-normal sm:text-base ${card.valueClass || 'text-surface-300'}">${card.value}</p>
+            if (state.logOpenSteps.size === 0) {
+                steps.forEach((step) => state.logOpenSteps.add(Number(step.step_order)));
+            }
+
+            const titleMap = {
+                preprocessing: 'Preprocessing',
+                scaling: 'Scaling',
+                windowing: 'Windowing',
+                training: 'Training',
+                generate: 'Generate',
+                evaluation: 'Evaluasi',
+            };
+            const statusStyleMap = {
+                success: 'bg-ispu-baik text-surface-50',
+                failed: 'bg-ispu-sangat-tidak-sehat text-surface-50',
+                running: 'bg-warning-100 text-warning-300',
+                pending: 'bg-surface-200 text-surface-300',
+            };
+
+            logStepsContainer.innerHTML = steps.map((step, idx) => {
+                const stepNo = Number(step.step_order);
+                const isOpen = state.logOpenSteps.has(stepNo);
+                const statusRaw = String(step.status || 'pending').toLowerCase();
+                const statusLabel = statusRaw.charAt(0).toUpperCase() + statusRaw.slice(1);
+                const statusClass = statusStyleMap[statusRaw] || statusStyleMap.pending;
+                const summary = step.summary && typeof step.summary === 'object' ? step.summary : {};
+                const summaryRows = Object.entries(summary).map(([key, value]) => `
+                    <div class="rounded-[12px] border border-surface-200 bg-primary-50 px-3 py-2">
+                        <p class="text-xs font-semibold text-surface-300">${String(key).replaceAll('_', ' ')}</p>
+                        <p class="text-sm text-surface-300">${Array.isArray(value) ? value.join(' / ') : (value ?? '-')}</p>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="flex gap-2 sm:gap-4">
+                        <div class="flex flex-col items-center pt-3">
+                            <span class="mb-1 w-6 text-right text-base font-bold leading-none text-surface-400 sm:text-lg">${stepNo}.</span>
+                            <div class="flex flex-col items-center">
+                                <i class="ph-fill ph-check-circle text-4xl ${statusRaw === 'success' ? 'text-ispu-baik' : statusRaw === 'failed' ? 'text-ispu-sangat-tidak-sehat' : 'text-warning-300'}"></i>
+                                ${idx === steps.length - 1 ? '' : '<div class="mt-1 w-px min-h-[24px] flex-1 bg-surface-200"></div>'}
+                            </div>
                         </div>
-                    `).join('')}
-                   </div>`
-                : '';
-
-            const notes = step.notes?.length
-                ? `<div>
-                    <p class="text-sm text-surface-300 sm:text-base">Keterangan:</p>
-                    <ul class="list-disc space-y-1 pl-5">
-                        ${step.notes.map((note) => `<li class="text-sm text-surface-300 sm:text-base">${note}</li>`).join('')}
-                    </ul>
-                   </div>`
-                : '';
-
-            const note = step.note ? `<p class="text-sm text-surface-300 sm:text-base">${step.note}</p>` : '';
-            const link = step.showLink
-                ? `<div class="inline-flex items-center gap-1.5">
-                    <i class="ph ph-file text-xl text-primary-300"></i>
-                    <button type="button" data-log-link="${step.number}" class="text-sm text-primary-300 underline sm:text-base">Lihat</button>
-                   </div>`
-                : '';
-            const action = step.actionLabel
-                ? `<div class="inline-flex items-center gap-2">
-                    <span class="text-sm text-surface-300 sm:text-base">Hasil evaluasi bisa dilihat di halaman ini</span>
-                    <button type="button" data-log-action="${step.number}" class="rounded-full bg-primary-300 px-4 py-1 text-sm font-bold text-surface-50">${step.actionLabel}</button>
-                   </div>`
-                : '';
-
-            return `
-                <div class="flex gap-2 sm:gap-4">
-                    <div class="flex flex-col items-center pt-3">
-                        <span class="mb-1 w-6 text-right text-base font-bold leading-none text-surface-400 sm:text-lg">${step.number}.</span>
-                        <div class="flex flex-col items-center">
-                            <i class="ph-fill ph-check-circle text-4xl text-ispu-baik"></i>
-                            ${idx === LOG_STEPS.length - 1 ? '' : '<div class="mt-1 w-px min-h-[24px] flex-1 bg-surface-200"></div>'}
+                        <div class="min-w-0 flex-1 pb-4">
+                            <button type="button" data-log-step-toggle="${stepNo}" class="flex w-full items-center justify-between rounded-t-[15px] border border-surface-200 bg-primary-50 px-4 py-3 text-left">
+                                <div class="flex flex-wrap items-center gap-3">
+                                    <span class="text-base font-bold text-surface-400 sm:text-lg">${stepNo}. ${titleMap[step.step_key] || step.step_key || 'Step'}</span>
+                                    <span class="rounded-full px-4 py-1 text-sm ${statusClass}">${statusLabel}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-base text-surface-400 sm:text-lg">${Number(step.duration_seconds || 0)}s</span>
+                                    <i class="ph ${isOpen ? 'ph-caret-up' : 'ph-caret-down'} text-base text-surface-400"></i>
+                                </div>
+                            </button>
+                            ${isOpen ? `<div class="space-y-4 rounded-b-[15px] border-b border-l border-r border-surface-200 bg-surface-100 p-4 sm:p-6">${summaryRows || '<p class="text-sm text-surface-300">Tidak ada ringkasan step.</p>'}</div>` : ''}
                         </div>
                     </div>
-                    <div class="min-w-0 flex-1 pb-4">
-                        <button type="button" data-log-step-toggle="${step.number}" class="flex w-full items-center justify-between rounded-t-[15px] border border-surface-200 bg-primary-50 px-4 py-3 text-left">
-                            <div class="flex flex-wrap items-center gap-3">
-                                <span class="text-base font-bold text-surface-400 sm:text-lg">${step.number}. ${step.title}</span>
-                                <span class="rounded-full bg-ispu-baik px-4 py-1 text-sm text-surface-50">Success</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-base text-surface-400 sm:text-lg">${step.duration}</span>
-                                <i class="ph ${isOpen ? 'ph-caret-up' : 'ph-caret-down'} text-base text-surface-400"></i>
-                            </div>
-                        </button>
-                        ${isOpen ? `<div class="space-y-4 rounded-b-[15px] border-b border-l border-r border-surface-200 bg-surface-100 p-4 sm:p-6">${statCards}${notes}${note}${link}${action}</div>` : ''}
-                    </div>
-                </div>
-            `;
-        }).join('');
+                `;
+            }).join('');
+        } catch (_) {}
     };
 
     const setupDatePicker = (scope, onAfterChange = null) => {
@@ -594,6 +890,9 @@ const initLstmOverview = () => {
         const prev = root.querySelector(`[data-date-prev="${scope}"]`);
         const next = root.querySelector(`[data-date-next="${scope}"]`);
         const list = root.querySelector(`[data-date-list="${scope}"]`);
+        const singleInput = root.querySelector(`[data-date-single-input="${scope}"]`);
+        const singleApply = root.querySelector(`[data-date-single-apply="${scope}"]`);
+        const singleAll = root.querySelector(`[data-date-single-all="${scope}"]`);
         const modeSingle = root.querySelector(`[data-date-mode="single"][data-date-scope="${scope}"]`);
         const modeRange = root.querySelector(`[data-date-mode="range"][data-date-scope="${scope}"]`);
         const modeMonth = root.querySelector(`[data-date-mode="month"][data-date-scope="${scope}"]`);
@@ -603,10 +902,9 @@ const initLstmOverview = () => {
         const monthInput = root.querySelector(`[data-date-month="${scope}"]`);
         const monthApply = root.querySelector(`[data-date-month-apply="${scope}"]`);
 
-        if (
-            !toggle || !label || !menu || !current || !prev || !next || !list ||
-            !modeSingle || !modeRange || !modeMonth || !rangeStart || !rangeEnd || !rangeApply || !monthInput || !monthApply
-        ) return null;
+        const hasSingleCalendar = !!(singleInput && singleApply);
+        const hasSingleList = !!(current && prev && next && list);
+        if (!toggle || !label || !menu || !modeSingle || (!hasSingleCalendar && !hasSingleList)) return null;
 
         const render = () => {
             const range = getRangeByScope(scope);
@@ -614,19 +912,30 @@ const initLstmOverview = () => {
             const ds = getDateStateByScope(scope);
 
             modeSingle.classList.toggle('hidden', mode !== 'single');
-            modeRange.classList.toggle('hidden', mode !== 'range');
-            modeMonth.classList.toggle('hidden', mode !== 'month');
+            if (modeRange) modeRange.classList.toggle('hidden', mode !== 'range');
+            if (modeMonth) modeMonth.classList.toggle('hidden', mode !== 'month');
 
-            label.textContent = getScopeLabel(scope);
+            if ((scope === 'table' || scope === 'evalrun' || scope === 'logrun') && ds.single === 'all') {
+                label.textContent = 'Semua Data';
+            } else {
+                label.textContent = getScopeLabel(scope);
+            }
 
             if (mode === 'range') {
+                if (!rangeStart || !rangeEnd) return;
                 rangeStart.value = ds.start;
                 rangeEnd.value = ds.end;
                 return;
             }
 
             if (mode === 'month') {
+                if (!monthInput) return;
                 monthInput.value = ds.month;
+                return;
+            }
+
+            if (singleInput && singleApply) {
+                singleInput.value = ds.single === 'all' ? '' : ds.single;
                 return;
             }
 
@@ -657,46 +966,73 @@ const initLstmOverview = () => {
             menu.classList.toggle('hidden');
         });
 
-        prev.addEventListener('click', () => {
-            const ds = getDateStateByScope(scope);
-            const options = buildDateOptions(ds.single, 20);
-            const idx = options.indexOf(ds.single);
-            if (idx > 0) {
-                ds.single = options[idx - 1];
+        if (prev && next && current && list) {
+            prev.addEventListener('click', () => {
+                const ds = getDateStateByScope(scope);
+                const options = buildDateOptions(ds.single, 20);
+                const idx = options.indexOf(ds.single);
+                if (idx > 0) {
+                    ds.single = options[idx - 1];
+                    render();
+                    onAfterChange?.();
+                }
+            });
+
+            next.addEventListener('click', () => {
+                const ds = getDateStateByScope(scope);
+                const options = buildDateOptions(ds.single, 20);
+                const idx = options.indexOf(ds.single);
+                if (idx >= 0 && idx < options.length - 1) {
+                    ds.single = options[idx + 1];
+                    render();
+                    onAfterChange?.();
+                }
+            });
+        }
+
+        if (singleInput && singleApply) {
+            singleApply.addEventListener('click', () => {
+                const ds = getDateStateByScope(scope);
+                if (!singleInput.value) return;
+                ds.single = singleInput.value;
+                menu.classList.add('hidden');
                 render();
                 onAfterChange?.();
-            }
-        });
+            });
+        }
 
-        next.addEventListener('click', () => {
-            const ds = getDateStateByScope(scope);
-            const options = buildDateOptions(ds.single, 20);
-            const idx = options.indexOf(ds.single);
-            if (idx >= 0 && idx < options.length - 1) {
-                ds.single = options[idx + 1];
+        if (singleAll) {
+            singleAll.addEventListener('click', () => {
+                const ds = getDateStateByScope(scope);
+                ds.single = 'all';
+                menu.classList.add('hidden');
                 render();
                 onAfterChange?.();
-            }
-        });
+            });
+        }
 
-        rangeApply.addEventListener('click', () => {
-            const ds = getDateStateByScope(scope);
-            if (!rangeStart.value || !rangeEnd.value) return;
-            ds.start = rangeStart.value;
-            ds.end = rangeEnd.value;
-            menu.classList.add('hidden');
-            render();
-            onAfterChange?.();
-        });
+        if (rangeApply && rangeStart && rangeEnd) {
+            rangeApply.addEventListener('click', () => {
+                const ds = getDateStateByScope(scope);
+                if (!rangeStart.value || !rangeEnd.value) return;
+                ds.start = rangeStart.value;
+                ds.end = rangeEnd.value;
+                menu.classList.add('hidden');
+                render();
+                onAfterChange?.();
+            });
+        }
 
-        monthApply.addEventListener('click', () => {
-            const ds = getDateStateByScope(scope);
-            if (!monthInput.value) return;
-            ds.month = monthInput.value;
-            menu.classList.add('hidden');
-            render();
-            onAfterChange?.();
-        });
+        if (monthApply && monthInput) {
+            monthApply.addEventListener('click', () => {
+                const ds = getDateStateByScope(scope);
+                if (!monthInput.value) return;
+                ds.month = monthInput.value;
+                menu.classList.add('hidden');
+                render();
+                onAfterChange?.();
+            });
+        }
 
         document.addEventListener('click', (event) => {
             if (!menu.contains(event.target) && !toggle.contains(event.target)) {
@@ -712,10 +1048,12 @@ const initLstmOverview = () => {
         state.page = 1;
         renderTable();
     });
-    const renderEvalDate = setupDatePicker('evaluation', () => {
+    const renderEvalRunDate = setupDatePicker('evalrun', () => {
+        renderRunMenus();
         renderEvaluation();
     });
-    const renderLogDate = setupDatePicker('log', () => {
+    const renderLogRunDate = setupDatePicker('logrun', () => {
+        renderRunMenus();
         renderLogSteps();
     });
 
@@ -746,7 +1084,6 @@ const initLstmOverview = () => {
             if (!value) return;
             state.evalRange = value;
             renderRanges();
-            renderEvalDate?.();
             renderEvaluation();
         });
     });
@@ -757,7 +1094,6 @@ const initLstmOverview = () => {
             if (!value) return;
             state.logRange = value;
             renderRanges();
-            renderLogDate?.();
             renderLogSteps();
         });
     });
@@ -766,28 +1102,30 @@ const initLstmOverview = () => {
         evalRunMenu.classList.toggle('hidden');
     });
 
-    evalRunOptions.forEach((button) => {
-        button.addEventListener('click', () => {
-            const id = button.getAttribute('data-eval-run-option');
-            if (!id) return;
-            state.evalRun = id;
-            evalRunMenu.classList.add('hidden');
-            renderEvaluation();
-        });
+    evalRunMenu.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-eval-run-option]');
+        if (!button) return;
+        const id = Number(button.getAttribute('data-eval-run-option'));
+        if (!id) return;
+        state.evalRun = id;
+        renderRunMenus();
+        evalRunMenu.classList.add('hidden');
+        renderEvaluation();
     });
 
     logRunToggle.addEventListener('click', () => {
         logRunMenu.classList.toggle('hidden');
     });
 
-    logRunOptions.forEach((button) => {
-        button.addEventListener('click', () => {
-            const id = button.getAttribute('data-log-run-option');
-            if (!id) return;
-            state.logRun = id;
-            logRunMenu.classList.add('hidden');
-            renderLogSteps();
-        });
+    logRunMenu.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-log-run-option]');
+        if (!button) return;
+        const id = Number(button.getAttribute('data-log-run-option'));
+        if (!id) return;
+        state.logRun = id;
+        renderRunMenus();
+        logRunMenu.classList.add('hidden');
+        renderLogSteps();
     });
 
     document.addEventListener('click', (event) => {
@@ -835,6 +1173,9 @@ const initLstmOverview = () => {
         };
 
         state.isRunning = true;
+        state.statusSessionActive = true;
+        state.statusRunId = null;
+        state.runRequestedAtMs = Date.now();
         setStartButtonState();
         setStatusDisplay('running', new Date().toLocaleString('id-ID'));
         startStatusPolling();
@@ -846,10 +1187,14 @@ const initLstmOverview = () => {
                 body: JSON.stringify(payload),
             });
 
-            await syncRuns();
+            await syncRuns({ syncStatus: false });
             renderTable();
-            const latest = state.tableRows[0];
+            const latest = state.tableRows[0] || null;
+            state.statusRunId = latest?.id || null;
             state.isRunning = !!latest && latest.status === 'Running';
+            if (!state.isRunning && latest) {
+                setStatusDisplay(String(latest.status || '').toLowerCase(), latest.waktuEksekusi);
+            }
             setStartButtonState();
             showToast('success', 'Prediksi masuk antrean dan sedang diproses.');
         } catch (error) {
@@ -857,6 +1202,34 @@ const initLstmOverview = () => {
             state.isRunning = false;
             setStartButtonState();
             stopStatusPolling();
+            showToast('error', error.message);
+        }
+    });
+
+    stopButton.addEventListener('click', async () => {
+        if (!state.isRunning) return;
+        const runningRow = getCurrentRunningRow();
+        const targetRunId = runningRow?.id || state.statusRunId;
+        if (!targetRunId) {
+            showToast('error', 'Run yang sedang berjalan tidak ditemukan.');
+            return;
+        }
+
+        stopButton.disabled = true;
+        stopButton.classList.add('opacity-70', 'cursor-not-allowed');
+        try {
+            await api(`/admin/api/lstm-runs/${targetRunId}/stop`, { method: 'POST' });
+            state.isRunning = false;
+            state.statusRunId = targetRunId;
+            setStatusDisplay('failed', new Date().toLocaleString('id-ID'));
+            setStartButtonState();
+            stopStatusPolling();
+            await syncRuns({ syncStatus: true });
+            renderTable();
+            showToast('success', 'Run berhasil dihentikan.');
+        } catch (error) {
+            stopButton.disabled = false;
+            stopButton.classList.remove('opacity-70', 'cursor-not-allowed');
             showToast('error', error.message);
         }
     });
@@ -880,8 +1253,17 @@ const initLstmOverview = () => {
             if (state.activeRunId === state.deleteId) {
                 state.activeRunId = state.tableRows[0]?.id ?? null;
             }
+            if (state.evalRun === state.deleteId) {
+                state.evalRun = state.tableRows[0]?.id ?? null;
+            }
+            if (state.logRun === state.deleteId) {
+                state.logRun = state.tableRows[0]?.id ?? null;
+            }
             state.page = 1;
             renderTable();
+            renderRunMenus();
+            renderEvaluation();
+            renderLogSteps();
             closeDeleteModal();
             showToast('success', 'Run berhasil dihapus.');
         } catch (error) {
@@ -903,17 +1285,14 @@ const initLstmOverview = () => {
             renderRanges();
             renderControlDate?.();
             renderTableDate?.();
-            renderEvalDate?.();
-            renderLogDate?.();
+            renderEvalRunDate?.();
+            renderLogRunDate?.();
             renderTable();
             renderEvaluation();
             renderLogSteps();
-            syncRuns()
+            syncRuns({ syncStatus: false })
                 .then(() => {
                     renderTable();
-                    if (state.isRunning) {
-                        startStatusPolling();
-                    }
                 })
                 .catch(() => {});
         });

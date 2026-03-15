@@ -188,15 +188,29 @@ class LstmRunController extends Controller
             return response()->json(['message' => 'Parameter tanggal tidak valid.'], 422);
         }
 
-        $predictions = LstmPrediction::query()
+        $baseQuery = LstmPrediction::query()
             ->where('lstm_run_id', $lstmRun->id)
             ->where(function ($query) {
                 $query->whereNotNull('pm10_actual')
                     ->orWhereNotNull('pm25_actual');
-            })
+            });
+
+        $predictions = (clone $baseQuery)
             ->whereBetween('predicted_for', [$window['start'], $window['end']])
             ->orderBy('predicted_for')
             ->get();
+
+        if ($predictions->isEmpty()) {
+            $latestActualAt = (clone $baseQuery)->max('predicted_for');
+            if ($latestActualAt) {
+                $fallbackWindow = $this->resolveLatestActualWindow($range, Carbon::parse($latestActualAt));
+                $predictions = (clone $baseQuery)
+                    ->whereBetween('predicted_for', [$fallbackWindow['start'], $fallbackWindow['end']])
+                    ->orderBy('predicted_for')
+                    ->get();
+                $window = $fallbackWindow;
+            }
+        }
 
         $chart = $this->buildChartPayload($predictions, $range);
         $metrics = $lstmRun->metrics()->get()->keyBy('pollutant');
@@ -228,7 +242,35 @@ class LstmRunController extends Controller
                 ],
                 'steps' => $steps,
                 'chart' => $chart,
+                'window' => $window,
             ],
+        ]);
+    }
+
+    public function stop(Request $request, LstmRun $lstmRun): JsonResponse
+    {
+        if ($lstmRun->status !== 'running') {
+            return response()->json([
+                'message' => 'Run ini sudah tidak dalam proses.',
+            ], 422);
+        }
+
+        $startedAt = $lstmRun->started_at ?? now();
+        $lstmRun->update([
+            'status' => 'failed',
+            'error_message' => 'Dihentikan oleh admin.',
+            'finished_at' => now(),
+            'duration_seconds' => (int) $startedAt->diffInSeconds(now()),
+        ]);
+
+        Log::warning('lstm.run.stopped_by_admin', [
+            'run_id' => $lstmRun->id,
+            'run_code' => $lstmRun->run_code,
+            'user_id' => $request->user()?->id,
+        ]);
+
+        return response()->json([
+            'message' => 'Permintaan stop diterima.',
         ]);
     }
 
@@ -885,6 +927,33 @@ class LstmRunController extends Controller
         ];
     }
 
+    private function resolveLatestActualWindow(string $range, Carbon $latestActual): array
+    {
+        if ($range === '30hari') {
+            $start = $latestActual->copy()->startOfMonth()->startOfDay();
+            $end = $latestActual->copy()->endOfMonth()->endOfDay();
+            return [
+                'start' => $start->toDateTimeString(),
+                'end' => $end->toDateTimeString(),
+            ];
+        }
+
+        if ($range === '7hari') {
+            $end = $latestActual->copy()->endOfDay();
+            $start = $latestActual->copy()->subDays(6)->startOfDay();
+            return [
+                'start' => $start->toDateTimeString(),
+                'end' => $end->toDateTimeString(),
+            ];
+        }
+
+        $single = $latestActual->copy();
+        return [
+            'start' => $single->startOfDay()->toDateTimeString(),
+            'end' => $single->endOfDay()->toDateTimeString(),
+        ];
+    }
+
     private function indicatorFromPm25(?float $value): ?string
     {
         if ($value === null) {
@@ -908,7 +977,7 @@ class LstmRunController extends Controller
     private function buildChartPayload($predictions, string $range): array
     {
         $formatLabel = fn (Carbon $date) => $range === '24jam'
-            ? $date->format('H')
+            ? $date->format('H:00')
             : $date->format('d M');
 
         $grouped = [];

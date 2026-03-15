@@ -20,6 +20,14 @@ class LstmPythonRunner
         if (! $run) {
             return;
         }
+        if ($run->status !== 'running') {
+            Log::warning('lstm.run.job.skipped_not_running', [
+                'trace_id' => $traceId,
+                'run_id' => $runId,
+                'status' => $run->status,
+            ]);
+            return;
+        }
 
         $startedAt = $run->started_at ?? now();
 
@@ -37,6 +45,11 @@ class LstmPythonRunner
 
             if ($code !== 0) {
                 throw new \RuntimeException('Runner python gagal. ' . trim($stderr ?: $stdout));
+            }
+
+            $run->refresh();
+            if ($run->status !== 'running') {
+                throw new \RuntimeException('Run dihentikan sebelum hasil dipersist.');
             }
 
             if (! File::exists($outputPath)) {
@@ -57,12 +70,15 @@ class LstmPythonRunner
                 'run_code' => $run->run_code,
             ]);
         } catch (\Throwable $e) {
-            $run->update([
-                'status' => 'failed',
-                'error_message' => $e->getMessage(),
-                'finished_at' => now(),
-                'duration_seconds' => (int) $startedAt->diffInSeconds(now()),
-            ]);
+            $run->refresh();
+            if ($run->status === 'running') {
+                $run->update([
+                    'status' => 'failed',
+                    'error_message' => $e->getMessage(),
+                    'finished_at' => now(),
+                    'duration_seconds' => (int) $startedAt->diffInSeconds(now()),
+                ]);
+            }
 
             Log::error('lstm.run.job.failed', [
                 'trace_id' => $traceId,
@@ -216,6 +232,11 @@ class LstmPythonRunner
         }
 
         DB::transaction(function () use ($run, $metrics, $predictions, $steps, $startedAt): void {
+            $currentRun = LstmRun::query()->lockForUpdate()->find($run->id);
+            if (! $currentRun || $currentRun->status !== 'running') {
+                return;
+            }
+
             LstmPrediction::query()->where('lstm_run_id', $run->id)->delete();
             LstmRunMetric::query()->where('lstm_run_id', $run->id)->delete();
             LstmRunStep::query()->where('lstm_run_id', $run->id)->delete();
@@ -302,7 +323,7 @@ class LstmPythonRunner
             LstmRunStep::query()->insert($stepRows);
 
             $finishedAt = now();
-            $run->update([
+            $currentRun->update([
                 'status' => 'success',
                 'error_message' => null,
                 'finished_at' => $finishedAt,

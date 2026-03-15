@@ -338,14 +338,22 @@ const initActualDataPage = () => {
 
     const renderCharts = () => {
         const { pm10, pm25 } = getActiveData();
+        const pm10Stats = calcStats(pm10);
+        const pm25Stats = calcStats(pm25);
+        const pm10Color = classify(Number(pm10Stats.average)).hex;
+        const pm25Color = classify(Number(pm25Stats.average)).hex;
 
         pm10Chart.data.labels = makeLabels(pm10);
         pm10Chart.data.datasets[0].data = pm10.map((item) => item.value);
+        pm10Chart.data.datasets[0].borderColor = pm10Color;
+        pm10Chart.data.datasets[0].backgroundColor = pm10Color;
         pm10Chart.options.scales.x.ticks.maxTicksLimit = activeRange === '30 Hari' ? 10 : 12;
         pm10Chart.update();
 
         pm25Chart.data.labels = makeLabels(pm25);
         pm25Chart.data.datasets[0].data = pm25.map((item) => item.value);
+        pm25Chart.data.datasets[0].borderColor = pm25Color;
+        pm25Chart.data.datasets[0].backgroundColor = pm25Color;
         pm25Chart.options.scales.x.ticks.maxTicksLimit = activeRange === '30 Hari' ? 10 : 12;
         pm25Chart.update();
 

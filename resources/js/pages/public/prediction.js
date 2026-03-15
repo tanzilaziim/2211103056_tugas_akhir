@@ -281,16 +281,24 @@ const initPredictionPage = () => {
 
     const renderCharts = () => {
         const { pm10, pm25 } = getChartData();
+        const pm10Stats = calcStats(pm10);
+        const pm25Stats = calcStats(pm25);
+        const pm10Color = classify(Number(pm10Stats.average)).hex;
+        const pm25Color = classify(Number(pm25Stats.average)).hex;
         const labels10 = makeLabels(pm10);
         const labels25 = makeLabels(pm25);
 
         pm10Chart.data.labels = labels10;
         pm10Chart.data.datasets[0].data = pm10.map((d) => d.value);
+        pm10Chart.data.datasets[0].borderColor = pm10Color;
+        pm10Chart.data.datasets[0].backgroundColor = pm10Color;
         pm10Chart.options.scales.x.ticks.maxTicksLimit = activePeriod === '7 Hari' ? 14 : 24;
         pm10Chart.update();
 
         pm25Chart.data.labels = labels25;
         pm25Chart.data.datasets[0].data = pm25.map((d) => d.value);
+        pm25Chart.data.datasets[0].borderColor = pm25Color;
+        pm25Chart.data.datasets[0].backgroundColor = pm25Color;
         pm25Chart.options.scales.x.ticks.maxTicksLimit = activePeriod === '7 Hari' ? 14 : 24;
         pm25Chart.update();
 

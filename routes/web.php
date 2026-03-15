@@ -49,6 +49,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/', [LstmRunController::class, 'index'])->name('index');
             Route::post('/', [LstmRunController::class, 'store'])->name('store');
             Route::get('/{lstmRun}', [LstmRunController::class, 'show'])->name('show');
+            Route::post('/{lstmRun}/stop', [LstmRunController::class, 'stop'])->name('stop');
             Route::post('/{lstmRun}/activate', [LstmRunController::class, 'activate'])->name('activate');
             Route::delete('/{lstmRun}', [LstmRunController::class, 'destroy'])->name('destroy');
         });
