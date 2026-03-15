@@ -2,100 +2,40 @@ import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
 
-const parseJsonScript = (id) => {
-    const node = document.getElementById(id);
-    if (!node) return [];
-
-    try {
-        return JSON.parse(node.textContent || '[]');
-    } catch {
-        return [];
-    }
-};
-
-const getRows = (data, threshold) =>
-    data.map((d) => ({
-        hour: `${String(d.hour).padStart(2, '0')}.00`,
-        concentration: d.value,
-        indicator: d.value > threshold ? 'Sedang' : 'Baik',
-    }));
-
-const calcStats = (data) => {
-    const values = data.map((d) => d.value);
-    const total = values.reduce((a, b) => a + b, 0);
-    const average = values.length ? (total / values.length).toFixed(1) : '0.0';
-    return {
-        average,
-        highest: values.length ? Math.max(...values) : 0,
-        lowest: values.length ? Math.min(...values) : 0,
-    };
-};
-
 const ISPU = {
-    baik: { label: 'Baik', hex: '#16A34A', rgba: 'rgba(22, 163, 74, 0.25)' },
-    sedang: { label: 'Sedang', hex: '#2563EB', rgba: 'rgba(37, 99, 235, 0.25)' },
-    tidakSehat: { label: 'Tidak Sehat', hex: '#FACC15', rgba: 'rgba(250, 204, 21, 0.25)' },
-    sangatTidakSehat: { label: 'Sangat Tidak Sehat', hex: '#DC2626', rgba: 'rgba(220, 38, 38, 0.25)' },
-    berbahaya: { label: 'Berbahaya', hex: '#111827', rgba: 'rgba(17, 24, 39, 0.25)' },
+    baik: { key: 'baik', label: 'Baik', hex: '#16A34A' },
+    sedang: { key: 'sedang', label: 'Sedang', hex: '#2563EB' },
+    tidakSehat: { key: 'tidakSehat', label: 'Tidak Sehat', hex: '#FACC15' },
+    sangatTidakSehat: { key: 'sangatTidakSehat', label: 'Sangat Tidak Sehat', hex: '#DC2626' },
+    berbahaya: { key: 'berbahaya', label: 'Berbahaya', hex: '#111827' },
 };
 
-const hexToRgba = (hex, alpha) => {
-    const normalized = hex.replace('#', '');
-    const bigint = parseInt(normalized.length === 3
-        ? normalized.split('').map((c) => c + c).join('')
-        : normalized, 16);
-    const r = (bigint >> 16) & 255;
-    const g = (bigint >> 8) & 255;
-    const b = bigint & 255;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
+const ICON_BAIK = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 454 503" class="w-5 h-5 md:w-8 md:h-8"><path stroke="#007B00" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" d="M348.2 144.529s28.1 4.4 26.6 34.8-3 70.3 21.5 76.2c24.4 5.9 47.4 12.6 47.4 45.9 0 30.4-39.2 34.8-39.2 34.8s-17.8 156.1-177 156.1-179.8-155.4-179.8-155.4-37.7-2.2-37.7-37.7 39.2-36.3 54-47.4 15.5-22.2 15.5-45.9-4.4-51.8 28.1-61.4c0 0 105.1 47.3 240.6 0" clip-rule="evenodd"></path><circle cx="320.1" cy="288.829" r="25.7" fill="#007B00"></circle><circle cx="135" cy="288.829" r="25.7" fill="#007B00"></circle><path stroke="#007B00" stroke-linecap="round" stroke-linejoin="round" stroke-width="15" d="M179.4 390.429s14.3 29.6 48.6 29.6c22 0 35.3-9.3 48.6-29.6z" clip-rule="evenodd"></path><path stroke="#007B00" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" d="M31.9 266.129s-17.5-110.5 32.1-170.4c0 0-21.5-36.3-11.8-63.6 0 0 50.7 12.3 99.9-9.5 70.3-31.3 291.5-22.5 271.2 241.9"></path></svg>';
+const ICON_SEDANG = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 454 503" class="w-5 h-5 md:w-8 md:h-8"><path stroke="#0133CC" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" d="M348.2 144.529s28.1 4.4 26.6 34.8-3 70.3 21.5 76.2c24.4 5.9 47.4 12.6 47.4 45.9 0 30.4-39.2 34.8-39.2 34.8s-17.8 156.1-177 156.1-179.8-155.4-179.8-155.4-37.7-2.2-37.7-37.7 39.2-36.3 54-47.4 15.5-22.2 15.5-45.9-4.4-51.8 28.1-61.4c0 0 105.1 47.3 240.6 0" clip-rule="evenodd"></path><circle cx="320.1" cy="288.829" r="25.7" fill="#0133CC"></circle><circle cx="135" cy="288.829" r="25.7" fill="#0133CC"></circle><path stroke="#0133CC" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" d="M179.4 390.429s13.4.5 48.6.5c0 0 32.5 0 48.6-.5M31.9 266.129s-17.5-110.5 32.1-170.4c0 0-21.5-36.3-11.8-63.6 0 0 50.7 12.3 99.9-9.5 70.3-31.3 291.5-22.5 271.2 241.9"></path></svg>';
 
-const gradientFromCategory = (category) =>
-    `linear-gradient(180deg, ${hexToRgba(category.hex, 0.25)} 0%, rgba(255, 255, 255, 0.25) 100%)`;
-
-const ICONS = {
-    baik:
-        '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 454 503" class="w-5 h-5 md:w-8 md:h-8"><path stroke="#007B00" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" d="M348.2 144.529s28.1 4.4 26.6 34.8-3 70.3 21.5 76.2c24.4 5.9 47.4 12.6 47.4 45.9 0 30.4-39.2 34.8-39.2 34.8s-17.8 156.1-177 156.1-179.8-155.4-179.8-155.4-37.7-2.2-37.7-37.7 39.2-36.3 54-47.4 15.5-22.2 15.5-45.9-4.4-51.8 28.1-61.4c0 0 105.1 47.3 240.6 0" clip-rule="evenodd"></path><circle cx="320.1" cy="288.829" r="25.7" fill="#007B00"></circle><circle cx="135" cy="288.829" r="25.7" fill="#007B00"></circle><path stroke="#007B00" stroke-linecap="round" stroke-linejoin="round" stroke-width="15" d="M179.4 390.429s14.3 29.6 48.6 29.6c22 0 35.3-9.3 48.6-29.6z" clip-rule="evenodd"></path><path stroke="#007B00" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" d="M31.9 266.129s-17.5-110.5 32.1-170.4c0 0-21.5-36.3-11.8-63.6 0 0 50.7 12.3 99.9-9.5 70.3-31.3 291.5-22.5 271.2 241.9"></path></svg>',
-    sedang:
-        '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 454 503" class="w-5 h-5 md:w-8 md:h-8"><path stroke="#0133CC" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" d="M348.2 144.529s28.1 4.4 26.6 34.8-3 70.3 21.5 76.2c24.4 5.9 47.4 12.6 47.4 45.9 0 30.4-39.2 34.8-39.2 34.8s-17.8 156.1-177 156.1-179.8-155.4-179.8-155.4-37.7-2.2-37.7-37.7 39.2-36.3 54-47.4 15.5-22.2 15.5-45.9-4.4-51.8 28.1-61.4c0 0 105.1 47.3 240.6 0" clip-rule="evenodd"></path><circle cx="320.1" cy="288.829" r="25.7" fill="#0133CC"></circle><circle cx="135" cy="288.829" r="25.7" fill="#0133CC"></circle><path stroke="#0133CC" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" d="M179.4 390.429s13.4.5 48.6.5c0 0 32.5 0 48.6-.5M31.9 266.129s-17.5-110.5 32.1-170.4c0 0-21.5-36.3-11.8-63.6 0 0 50.7 12.3 99.9-9.5 70.3-31.3 291.5-22.5 271.2 241.9"></path></svg>',
-    tidakSehat:
-        '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 454 503" class="w-5 h-5 md:w-8 md:h-8"><path stroke="#F0B100" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" d="M348.4 145.2s28.1 4.4 26.6 34.8-3 70.3 21.5 76.2c24.4 5.9 47.4 12.6 47.4 45.9 0 30.4-39.2 34.8-39.2 34.8S386.9 493 227.7 493 47.9 337.6 47.9 337.6s-37.7-2.2-37.7-37.7 39.2-36.3 54-47.4 15.5-22.2 15.5-45.9-4.4-51.8 28.1-61.4c0 0 105.1 47.3 240.6 0" clip-rule="evenodd"></path><circle cx="320.3" cy="289.5" r="25.7" fill="#F0B100"></circle><circle cx="135.2" cy="289.5" r="25.7" fill="#F0B100"></circle><path stroke="#F0B100" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" d="M179.6 420.7s14.3-29.6 48.6-29.6c22 0 35.3 9.3 48.6 29.6M32.1 266.8S14.6 156.3 64.2 96.4c0 0-21.5-36.3-11.8-63.6 0 0 50.7 12.3 99.9-9.5C222.6-8 443.8.8 423.5 265.2"></path></svg>',
-    sangatTidakSehat:
-        '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 454 503" class="w-5 h-5 md:w-8 md:h-8"><path stroke="red" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" d="M348.2 144.529s28.1 4.4 26.6 34.8-3 70.3 21.5 76.2c24.4 5.9 47.4 12.6 47.4 45.9 0 30.4-39.2 34.8-39.2 34.8s-17.8 156.1-177 156.1-179.8-155.4-179.8-155.4-37.7-2.2-37.7-37.7 39.2-36.3 54-47.4 15.5-22.2 15.5-45.9-4.4-51.8 28.1-61.4c0 0 105.1 47.3 240.6 0" clip-rule="evenodd"></path><circle cx="320.1" cy="288.829" r="25.7" fill="red"></circle><circle cx="135" cy="288.829" r="25.7" fill="red"></circle><path stroke="red" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" d="M31.9 266.129s-17.5-110.5 32.1-170.4c0 0-21.5-36.3-11.8-63.6 0 0 50.7 12.3 99.9-9.5 70.3-31.3 291.5-22.5 271.2 241.9"></path><path stroke="red" stroke-linecap="round" stroke-linejoin="round" stroke-width="10" d="M76.8 340.829v72c24.8 39.4 70 79.5 150.7 79.5 80.8 0 125.2-40.3 149.3-79.9v-71.6s-98.493-24.121-150-24.121-150 24.121-150 24.121" clip-rule="evenodd"></path><rect width="60" height="60" x="197.8" y="374.329" stroke="red" stroke-width="10" rx="10"></rect><path stroke="red" stroke-linecap="round" stroke-width="10" d="M193.8 348.351s33.35-10.52 66.7 0"></path><path stroke="red" stroke-linecap="round" stroke-linejoin="round" stroke-width="10" d="M76.8 340.829S178.794 318.3 229.136 318.3 376.8 340.829 376.8 340.829l19.5-85.3"></path><path stroke="red" stroke-linecap="round" stroke-linejoin="round" stroke-width="10" d="M376.8 340.829s-98.036-22.57-148.233-22.57S76.8 340.829 76.8 340.829l-19.5-85.3"></path><circle cx="228" cy="404.529" r="17.2" fill="red" stroke="red" stroke-width="10"></circle></svg>',
-    berbahaya:
-        '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 454 510" class="w-5 h-5 md:w-8 md:h-8"><path stroke="#0F172A" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" d="M70.8 402.529c-18.9-34.4-23.1-65.6-23.1-65.6s-37.7-2.2-37.7-37.7 39.2-36.3 54-47.4 15.5-22.2 15.5-45.9-4.4-51.8 28.1-61.4c0 0 105.1 47.4 240.5 0 0 0 28.1 4.4 26.6 34.8s-3 70.3 21.5 76.2c24.4 5.9 47.4 12.6 47.4 45.9 0 30.4-39.2 34.8-39.2 34.8s-2.7 30.1-21 64.6M290.2 482.729c-18 6-38.7 9.6-62.7 9.6-24.3 0-45.5-3.6-63.7-9.8"></path><circle cx="320.1" cy="288.829" r="25.7" fill="#0F172A"></circle><circle cx="135" cy="288.829" r="25.7" fill="#0F172A"></circle><path stroke="#0F172A" stroke-linecap="round" stroke-linejoin="round" stroke-width="20" d="M31.9 266.129s-17.5-110.5 32.1-170.4c0 0-21.5-36.3-11.8-63.6 0 0 50.7 12.3 99.9-9.5 70.3-31.3 291.5-22.5 271.2 241.9"></path><path stroke="#0F172A" stroke-linecap="round" stroke-linejoin="round" stroke-width="10" d="M397.2 367.029c-15.4-21.1-100.3-47.6-118.7-54.2-18.8-6.8-46.3-6.6-51.7-6.5h-.2c-5.4-.1-32.9-.2-51.7 6.5-18.6 6.7-105.9 33.9-119.3 55.2"></path><ellipse cx="99.72" cy="448.953" stroke="#0F172A" stroke-width="20" rx="26" ry="55.101" transform="rotate(-28.092 99.72 448.953)"></ellipse><path stroke="#0F172A" stroke-width="15" d="M117.9 376.729c12.7-6.8 34.5 9.5 48.9 36.4 14.3 26.9 15.7 54.1 3.1 60.9M117.9 376.729l-44.1 23.5M169.8 474.029l-44.1 23.5"></path><ellipse cx="353.905" cy="448.87" stroke="#0F172A" stroke-width="20" rx="55.101" ry="26" transform="rotate(-61.908 353.905 448.87)"></ellipse><path stroke="#0F172A" stroke-width="15" d="M335.7 376.729c-12.7-6.8-34.5 9.5-48.9 36.4-14.3 26.9-15.7 54.1-3.1 60.9M335.7 376.729l44.1 23.5M283.8 474.029l44.1 23.5"></path><circle cx="226.8" cy="408.929" r="21.2" stroke="#0F172A" stroke-width="10"></circle><path stroke="#0F172A" stroke-linecap="round" stroke-width="10" d="M193.4 338.329s37.4-15.8 66.7 0M202.9 358.929s26.8-10.8 47.8 0"></path></svg>',
-};
-
-const classify = (value) => {
-    if (value <= 15.5) return ISPU.baik;
-    if (value <= 55.4) return ISPU.sedang;
-    if (value <= 150.4) return ISPU.tidakSehat;
-    if (value <= 250.4) return ISPU.sangatTidakSehat;
+const resolveIndicator = (value) => {
+    const v = Number(value || 0);
+    if (v <= 15.5) return ISPU.baik;
+    if (v <= 55.4) return ISPU.sedang;
+    if (v <= 150.4) return ISPU.tidakSehat;
+    if (v <= 250.4) return ISPU.sangatTidakSehat;
     return ISPU.berbahaya;
 };
 
-const create7d = (base, amp, phase, mod) =>
-    Array.from({ length: 24 * 7 }, (_, i) => ({
-        hour: i,
-        value: Math.max(0, Math.round(base + Math.sin(i * phase) * amp + ((i * mod) % 10))),
-    }));
-
-const addDays = (isoDate, days) => {
-    const date = new Date(`${isoDate}T00:00:00`);
-    date.setDate(date.getDate() + days);
-    return date.toISOString().slice(0, 10);
+const stats = (values) => {
+    const nums = (Array.isArray(values) ? values : []).filter((v) => v !== null && Number.isFinite(Number(v))).map(Number);
+    if (!nums.length) return { avg: '0.0', max: 0, min: 0 };
+    return {
+        avg: (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1),
+        max: Math.max(...nums),
+        min: Math.min(...nums),
+    };
 };
 
-const buildDateOptions = (anchor, count = 14) =>
-    Array.from({ length: count }, (_, idx) => addDays(anchor, -idx));
-
-const formatShortDate = (isoDate) => {
+const formatIdDate = (isoDate) => {
     try {
-        return new Date(`${isoDate}T00:00:00`).toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-        });
+        const d = new Date(`${isoDate}T00:00:00`);
+        return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
     } catch {
         return isoDate;
     }
@@ -103,7 +43,7 @@ const formatShortDate = (isoDate) => {
 
 const formatMonthId = (monthStr) => {
     try {
-        const [year, month] = monthStr.split('-').map(Number);
+        const [year, month] = String(monthStr).split('-').map(Number);
         const date = new Date(year, month - 1, 1);
         return date.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
     } catch {
@@ -111,382 +51,387 @@ const formatMonthId = (monthStr) => {
     }
 };
 
+const hexToRgba = (hex, alpha) => {
+    const normalized = String(hex || '').replace('#', '');
+    const value = parseInt(normalized.length === 3 ? normalized.split('').map((c) => c + c).join('') : normalized, 16);
+    const r = (value >> 16) & 255;
+    const g = (value >> 8) & 255;
+    const b = value & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+const gradientFromColor = (hex) => `linear-gradient(180deg, ${hexToRgba(hex, 0.25)} 0%, rgba(255,255,255,0.25) 100%)`;
+const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+const getDateMode = (range) => (range === '7 Hari' ? 'range' : range === '30 Hari' ? 'month' : 'single');
+
+const api = async (url) => {
+    const response = await fetch(url, {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken() },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload?.message || 'Gagal memuat prediksi.');
+    return payload;
+};
+
 const initPredictionPage = () => {
     const root = document.querySelector('[data-page="prediction"]');
     if (!root) return;
 
-    const pm10Data24h = parseJsonScript('pm10-data-24h');
-    const pm25Data24h = parseJsonScript('pm25-data-24h');
-
-    const pm10Data12h = pm10Data24h.slice(0, 12);
-    const pm25Data12h = pm25Data24h.slice(0, 12);
-    const pm10Data7d = create7d(20, 15, 0.4, 7);
-    const pm25Data7d = create7d(5, 5, 0.5, 3);
-
-    let activePeriod = '24 Jam';
-    let activeTab = 'pm25';
-
-    const periodButtons = Array.from(document.querySelectorAll('[data-period-btn]'));
-    const pm10TabBtn = document.querySelector('[data-tab="pm10"]');
-    const pm25TabBtn = document.querySelector('[data-tab="pm25"]');
-    const tableBody = document.querySelector('[data-detail-table-body]');
-
-    const pm10AvgEl = document.querySelector('[data-pm10-average]');
-    const pm10HighEl = document.querySelector('[data-pm10-highest]');
-    const pm10LowEl = document.querySelector('[data-pm10-lowest]');
-    const pm10StatusEl = document.querySelector('[data-pm10-status]');
-    const pm10IconEl = document.querySelector('[data-pm10-icon]');
-    const pm10CardEl = document.querySelector('[data-pm10-card]');
-
-    const pm25AvgEl = document.querySelector('[data-pm25-average]');
-    const pm25HighEl = document.querySelector('[data-pm25-highest]');
-    const pm25LowEl = document.querySelector('[data-pm25-lowest]');
-    const pm25StatusEl = document.querySelector('[data-pm25-status]');
-    const pm25IconEl = document.querySelector('[data-pm25-icon]');
-    const pm25CardEl = document.querySelector('[data-pm25-card]');
-
-    const pm10TitleEl = document.querySelector('[data-chart-title="pm10"]');
-    const pm25TitleEl = document.querySelector('[data-chart-title="pm25"]');
-    const dateToggle = document.querySelector('[data-date-toggle]');
-    const dateMenu = document.querySelector('[data-date-menu]');
-    const dateCurrent = document.querySelector('[data-date-current]');
-    const datePrev = document.querySelector('[data-date-prev]');
-    const dateNext = document.querySelector('[data-date-next]');
-    const dateList = document.querySelector('[data-date-list]');
-    const dateModeSingle = document.querySelector('[data-date-mode="single"]');
-    const dateModeRange = document.querySelector('[data-date-mode="range"]');
-    const dateModeMonth = document.querySelector('[data-date-mode="month"]');
-    const dateRangeStart = document.querySelector('[data-date-range-start]');
-    const dateRangeEnd = document.querySelector('[data-date-range-end]');
-    const dateRangeApply = document.querySelector('[data-date-range-apply]');
-    const dateMonthInput = document.querySelector('[data-date-month]');
-    const dateMonthApply = document.querySelector('[data-date-month-apply]');
-    const dateDisplay = document.querySelector('[data-date-display]');
-    let selectedDate = new Date().toISOString().slice(0, 10);
-    let selectedRangeStart = addDays(selectedDate, -6);
-    let selectedRangeEnd = selectedDate;
-    let selectedMonth = selectedDate.slice(0, 7);
-
-    const formatDateId = (date) =>
-        date.toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-        });
-
-    const periodLabel = () => (activePeriod === '7 Hari' ? '7 Hari' : activePeriod);
-
-    const getChartData = () => {
-        if (activePeriod === '12 Jam') return { pm10: pm10Data12h, pm25: pm25Data12h };
-        if (activePeriod === '7 Hari') return { pm10: pm10Data7d, pm25: pm25Data7d };
-        return { pm10: pm10Data24h, pm25: pm25Data24h };
+    const state = {
+        range: '24 Jam',
+        date: '',
+        rangeStart: '',
+        rangeEnd: '',
+        month: '',
+        availableDates: [],
+        activeTab: 'pm25',
+        labels: [],
+        pm10Series: [],
+        pm25Series: [],
+        hasActiveRun: false,
     };
 
-    const getTableData = () => {
-        if (activeTab === 'pm10') return getRows(pm10Data24h, 30);
-        return getRows(pm25Data24h, 10);
-    };
+    const periodButtons = root.querySelectorAll('[data-period-btn]');
+    const dateToggle = root.querySelector('[data-date-toggle]');
+    const dateMenu = root.querySelector('[data-date-menu]');
+    const dateDisplay = root.querySelector('[data-date-display]');
+    const dateCurrent = root.querySelector('[data-date-current]');
+    const datePrev = root.querySelector('[data-date-prev]');
+    const dateNext = root.querySelector('[data-date-next]');
+    const dateList = root.querySelector('[data-date-list]');
+    const dateModeSingle = root.querySelector('[data-date-mode="single"]');
+    const dateModeRange = root.querySelector('[data-date-mode="range"]');
+    const dateModeMonth = root.querySelector('[data-date-mode="month"]');
+    const rangeStartInput = root.querySelector('[data-date-range-start]');
+    const rangePreview = root.querySelector('[data-date-range-preview]');
+    const rangeApplyBtn = root.querySelector('[data-date-range-apply]');
+    const monthInput = root.querySelector('[data-date-month]');
+    const monthApplyBtn = root.querySelector('[data-date-month-apply]');
 
-    const makeLabels = (data) =>
-        data.map((d) => (activePeriod === '7 Hari' ? `${d.hour}` : `${d.hour}`));
+    const pm10Card = root.querySelector('[data-pm10-card]');
+    const pm25Card = root.querySelector('[data-pm25-card]');
+    const pm10Icon = root.querySelector('[data-pm10-icon]');
+    const pm25Icon = root.querySelector('[data-pm25-icon]');
+    const pm10Status = root.querySelector('[data-pm10-status]');
+    const pm25Status = root.querySelector('[data-pm25-status]');
+    const pm10Avg = root.querySelector('[data-pm10-average]');
+    const pm10High = root.querySelector('[data-pm10-highest]');
+    const pm10Low = root.querySelector('[data-pm10-lowest]');
+    const pm25Avg = root.querySelector('[data-pm25-average]');
+    const pm25High = root.querySelector('[data-pm25-highest]');
+    const pm25Low = root.querySelector('[data-pm25-lowest]');
 
-    const pm10Ctx = document.getElementById('pm10-chart');
-    const pm25Ctx = document.getElementById('pm25-chart');
-    if (!(pm10Ctx instanceof HTMLCanvasElement) || !(pm25Ctx instanceof HTMLCanvasElement)) return;
+    const pm10Title = root.querySelector('[data-chart-title="pm10"]');
+    const pm25Title = root.querySelector('[data-chart-title="pm25"]');
+    const tabPm10 = root.querySelector('[data-tab="pm10"]');
+    const tabPm25 = root.querySelector('[data-tab="pm25"]');
+    const tableBody = root.querySelector('[data-detail-table-body]');
+    const tableTimeHead = root.querySelector('[data-detail-time-head]');
 
-    const buildChart = (ctx, color, titlePrefix) =>
-        new Chart(ctx, {
-            type: 'line',
-            data: { labels: [], datasets: [{ label: titlePrefix, data: [], borderColor: color, backgroundColor: color, pointRadius: 4, pointHoverRadius: 5, borderWidth: 2, tension: 0 }] },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: (item) => `${item.parsed.y} µg/m³`,
-                            title: (items) => (activePeriod === '7 Hari' ? `Titik ${items[0].label}` : `Jam ${items[0].label}:00`),
+    const pm10Canvas = document.getElementById('pm10-chart');
+    const pm25Canvas = document.getElementById('pm25-chart');
+
+    if (
+        !periodButtons.length || !dateToggle || !dateMenu || !dateDisplay || !dateCurrent || !datePrev || !dateNext || !dateList ||
+        !dateModeSingle || !dateModeRange || !dateModeMonth || !rangeStartInput || !rangePreview || !rangeApplyBtn || !monthInput || !monthApplyBtn ||
+        !pm10Card || !pm25Card || !pm10Icon || !pm25Icon || !pm10Status || !pm25Status || !pm10Avg || !pm10High || !pm10Low || !pm25Avg || !pm25High || !pm25Low ||
+        !pm10Title || !pm25Title || !tabPm10 || !tabPm25 || !tableBody || !tableTimeHead ||
+        !(pm10Canvas instanceof HTMLCanvasElement) || !(pm25Canvas instanceof HTMLCanvasElement)
+    ) return;
+
+    const buildChart = (ctx) => new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets: [{ data: [], borderColor: '#2563EB', backgroundColor: '#2563EB', pointRadius: 4, pointHoverRadius: 5, borderWidth: 2, tension: 0 }] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        title: (items) => {
+                            const label = items[0]?.label ?? '-';
+                            return state.range === '24 Jam' ? `Jam ${label}` : label;
                         },
-                    },
-                },
-                scales: {
-                    x: {
-                        ticks: { color: '#475569', maxRotation: 0, autoSkip: true, maxTicksLimit: activePeriod === '7 Hari' ? 14 : 24 },
-                        grid: { color: '#E2E8F0' },
-                        border: { color: '#475569' },
-                    },
-                    y: {
-                        ticks: { color: '#475569' },
-                        grid: { color: '#E2E8F0' },
-                        border: { display: false },
+                        label: (item) => `${item.parsed.y} ug/m3`,
                     },
                 },
             },
-        });
+            scales: {
+                x: { ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: true, maxTicksLimit: state.range === '30 Hari' ? 15 : 24 }, grid: { color: '#e2e8f0', drawOnChartArea: false }, border: { color: '#cbd5e1' } },
+                y: { ticks: { color: '#94a3b8' }, grid: { color: '#e2e8f0' }, border: { display: false } },
+            },
+        },
+    });
 
-    const pm10Chart = buildChart(pm10Ctx, '#2563EB', 'PM10');
-    const pm25Chart = buildChart(pm25Ctx, '#16A34A', 'PM2.5');
+    const pm10Chart = buildChart(pm10Canvas);
+    const pm25Chart = buildChart(pm25Canvas);
 
-    const renderTable = () => {
-        if (!tableBody) return;
-        const rows = getTableData();
-        tableBody.innerHTML = rows
-            .map(
-                (row) => `
-                <tr class="border-b border-slate-500/20">
-                    <td class="py-2 text-center text-slate-600">${row.hour}</td>
-                    <td class="py-2 text-center text-slate-600">${row.concentration}</td>
-                    <td class="py-2 text-center text-slate-600">${row.indicator}</td>
-                </tr>
-            `,
-            )
-            .join('');
+    const buildQuery = () => {
+        const params = new URLSearchParams();
+        const mapRange = state.range === '7 Hari' ? '7hari' : state.range === '30 Hari' ? '30hari' : '24jam';
+        params.set('range', mapRange);
+        const mode = getDateMode(state.range);
+        if (mode === 'single') params.set('date_single', state.date);
+        if (mode === 'range') params.set('date_start', state.rangeStart);
+        if (mode === 'month') params.set('date_month', state.month);
+        return params.toString();
     };
 
-    const renderSummary = () => {
-        const { pm10, pm25 } = getChartData();
-        const pm10Stats = calcStats(pm10);
-        const pm25Stats = calcStats(pm25);
-        const pm10Class = classify(Number(pm10Stats.average));
-        const pm25Class = classify(Number(pm25Stats.average));
-
-        if (pm10AvgEl) pm10AvgEl.textContent = pm10Stats.average;
-        if (pm10HighEl) pm10HighEl.textContent = String(pm10Stats.highest);
-        if (pm10LowEl) pm10LowEl.textContent = String(pm10Stats.lowest);
-        if (pm10StatusEl) pm10StatusEl.textContent = pm10Class.label;
-        if (pm10IconEl) pm10IconEl.innerHTML = ICONS[Object.keys(ISPU).find((k) => ISPU[k].label === pm10Class.label) || 'sedang'];
-        if (pm10CardEl) {
-            pm10CardEl.style.backgroundColor = 'white';
-            pm10CardEl.style.backgroundImage = gradientFromCategory(pm10Class);
-        }
-        if (pm10AvgEl) pm10AvgEl.style.color = pm10Class.hex;
-        if (pm10HighEl) pm10HighEl.style.color = pm10Class.hex;
-        if (pm10LowEl) pm10LowEl.style.color = pm10Class.hex;
-
-        if (pm25AvgEl) pm25AvgEl.textContent = pm25Stats.average;
-        if (pm25HighEl) pm25HighEl.textContent = String(pm25Stats.highest);
-        if (pm25LowEl) pm25LowEl.textContent = String(pm25Stats.lowest);
-        if (pm25StatusEl) pm25StatusEl.textContent = pm25Class.label;
-        if (pm25IconEl) pm25IconEl.innerHTML = ICONS[Object.keys(ISPU).find((k) => ISPU[k].label === pm25Class.label) || 'baik'];
-        if (pm25CardEl) {
-            pm25CardEl.style.backgroundColor = 'white';
-            pm25CardEl.style.backgroundImage = gradientFromCategory(pm25Class);
-        }
-        if (pm25AvgEl) pm25AvgEl.style.color = pm25Class.hex;
-        if (pm25HighEl) pm25HighEl.style.color = pm25Class.hex;
-        if (pm25LowEl) pm25LowEl.style.color = pm25Class.hex;
-    };
-
-    const renderCharts = () => {
-        const { pm10, pm25 } = getChartData();
-        const pm10Stats = calcStats(pm10);
-        const pm25Stats = calcStats(pm25);
-        const pm10Color = classify(Number(pm10Stats.average)).hex;
-        const pm25Color = classify(Number(pm25Stats.average)).hex;
-        const labels10 = makeLabels(pm10);
-        const labels25 = makeLabels(pm25);
-
-        pm10Chart.data.labels = labels10;
-        pm10Chart.data.datasets[0].data = pm10.map((d) => d.value);
-        pm10Chart.data.datasets[0].borderColor = pm10Color;
-        pm10Chart.data.datasets[0].backgroundColor = pm10Color;
-        pm10Chart.options.scales.x.ticks.maxTicksLimit = activePeriod === '7 Hari' ? 14 : 24;
-        pm10Chart.update();
-
-        pm25Chart.data.labels = labels25;
-        pm25Chart.data.datasets[0].data = pm25.map((d) => d.value);
-        pm25Chart.data.datasets[0].borderColor = pm25Color;
-        pm25Chart.data.datasets[0].backgroundColor = pm25Color;
-        pm25Chart.options.scales.x.ticks.maxTicksLimit = activePeriod === '7 Hari' ? 14 : 24;
-        pm25Chart.update();
-
-        if (pm10TitleEl) pm10TitleEl.textContent = `PM10 - Prediksi ${periodLabel()} Terakhir`;
-        if (pm25TitleEl) pm25TitleEl.textContent = `PM2.5 - Prediksi ${periodLabel()} Terakhir`;
-    };
-
-    const setActivePeriodButton = () => {
-        periodButtons.forEach((btn) => {
-            const period = btn.getAttribute('data-period-btn');
-            const active = period === activePeriod;
-            btn.classList.toggle('bg-primary-300', active);
-            btn.classList.toggle('text-surface-50', active);
-            btn.classList.toggle('text-slate-600', !active);
+    const renderPeriodButtons = () => {
+        periodButtons.forEach((button) => {
+            const active = button.getAttribute('data-period-btn') === state.range;
+            button.classList.toggle('bg-primary-300', active);
+            button.classList.toggle('text-surface-50', active);
+            button.classList.toggle('text-slate-600', !active);
         });
     };
 
-    const setActiveTabButton = () => {
-        const setState = (btn, active) => {
-            if (!btn) return;
-            btn.classList.toggle('bg-primary-300', active);
-            btn.classList.toggle('text-surface-50', active);
-            btn.classList.toggle('text-slate-600', !active);
-        };
-        setState(pm10TabBtn, activeTab === 'pm10');
-        setState(pm25TabBtn, activeTab === 'pm25');
-    };
-
-    const getDateMode = () => {
-        if (activePeriod === '7 Hari') return 'range';
-        if (activePeriod === '30 Hari') return 'month';
-        return 'single';
-    };
-
-    const renderDatePicker = () => {
-        if (
-            !(dateDisplay instanceof HTMLElement) ||
-            !(dateModeSingle instanceof HTMLElement) ||
-            !(dateModeRange instanceof HTMLElement) ||
-            !(dateModeMonth instanceof HTMLElement)
-        ) return;
-
-        const mode = getDateMode();
+    const renderDateMenu = () => {
+        const mode = getDateMode(state.range);
         dateModeSingle.classList.toggle('hidden', mode !== 'single');
         dateModeRange.classList.toggle('hidden', mode !== 'range');
         dateModeMonth.classList.toggle('hidden', mode !== 'month');
 
+        if (mode === 'single') {
+            dateDisplay.textContent = state.date ? formatIdDate(state.date) : '-';
+            dateCurrent.textContent = state.date ? formatIdDate(state.date) : '-';
+            const idx = state.availableDates.indexOf(state.date);
+            datePrev.disabled = idx <= 0;
+            dateNext.disabled = idx < 0 || idx >= state.availableDates.length - 1;
+
+            dateList.innerHTML = state.availableDates.map((dateStr) => {
+                const active = dateStr === state.date;
+                return `<button type="button" data-date-value="${dateStr}" class="w-full rounded-lg px-3 py-1.5 text-left text-sm transition-colors ${active ? 'bg-primary-300 text-surface-50' : 'text-surface-300 hover:bg-surface-200'}">${formatIdDate(dateStr)}</button>`;
+            }).join('');
+
+            dateList.querySelectorAll('[data-date-value]').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    const value = button.getAttribute('data-date-value');
+                    if (!value) return;
+                    state.date = value;
+                    dateMenu.classList.add('hidden');
+                    await loadData();
+                });
+            });
+            return;
+        }
+
         if (mode === 'range') {
-            dateDisplay.textContent = `${formatShortDate(selectedRangeStart)} - ${formatShortDate(selectedRangeEnd)}`;
-            if (dateRangeStart instanceof HTMLInputElement) dateRangeStart.value = selectedRangeStart;
-            if (dateRangeEnd instanceof HTMLInputElement) dateRangeEnd.value = selectedRangeEnd;
+            dateDisplay.textContent = state.rangeStart && state.rangeEnd ? `${formatIdDate(state.rangeStart)} - ${formatIdDate(state.rangeEnd)}` : '-';
+            rangeStartInput.value = state.rangeStart || '';
+            rangePreview.textContent = state.rangeStart && state.rangeEnd ? `${formatIdDate(state.rangeStart)} s.d ${formatIdDate(state.rangeEnd)}` : '-';
+            datePrev.disabled = true;
+            dateNext.disabled = true;
+            dateList.innerHTML = '';
             return;
         }
 
-        if (mode === 'month') {
-            dateDisplay.textContent = formatMonthId(selectedMonth);
-            if (dateMonthInput instanceof HTMLInputElement) dateMonthInput.value = selectedMonth;
-            return;
-        }
+        dateDisplay.textContent = state.month ? formatMonthId(state.month) : '-';
+        monthInput.value = state.month || '';
+        datePrev.disabled = true;
+        dateNext.disabled = true;
+        dateList.innerHTML = '';
+    };
 
-        if (
-            !(dateCurrent instanceof HTMLElement) ||
-            !(datePrev instanceof HTMLButtonElement) ||
-            !(dateNext instanceof HTMLButtonElement) ||
-            !(dateList instanceof HTMLElement)
-        ) return;
+    const renderCards = () => {
+        const pm10Stat = stats(state.pm10Series);
+        const pm25Stat = stats(state.pm25Series);
+        const pm10Indicator = resolveIndicator(pm10Stat.avg);
+        const pm25Indicator = resolveIndicator(pm25Stat.avg);
 
-        dateDisplay.textContent = formatDateId(new Date(`${selectedDate}T00:00:00`));
-        dateCurrent.textContent = formatDateId(new Date(`${selectedDate}T00:00:00`));
+        pm10Status.textContent = pm10Indicator.label;
+        pm25Status.textContent = pm25Indicator.label;
+        pm10Icon.innerHTML = pm10Indicator.key === 'baik' ? ICON_BAIK : ICON_SEDANG;
+        pm25Icon.innerHTML = pm25Indicator.key === 'baik' ? ICON_BAIK : ICON_SEDANG;
 
-        const options = buildDateOptions(selectedDate, 14);
-        const idx = options.indexOf(selectedDate);
-        datePrev.disabled = idx <= 0;
-        dateNext.disabled = idx < 0 || idx >= options.length - 1;
+        pm10Card.style.background = gradientFromColor(pm10Indicator.hex);
+        pm25Card.style.background = gradientFromColor(pm25Indicator.hex);
 
-        dateList.innerHTML = options.map((dateStr) => {
-            const active = dateStr === selectedDate;
-            return `<button type="button" data-date-value="${dateStr}" class="w-full rounded-lg px-3 py-1.5 text-left text-sm transition-colors ${active ? 'bg-primary-300 text-surface-50' : 'text-surface-300 hover:bg-surface-200'}">${formatShortDate(dateStr)}</button>`;
+        pm10Avg.textContent = pm10Stat.avg;
+        pm10High.textContent = String(pm10Stat.max);
+        pm10Low.textContent = String(pm10Stat.min);
+        pm25Avg.textContent = pm25Stat.avg;
+        pm25High.textContent = String(pm25Stat.max);
+        pm25Low.textContent = String(pm25Stat.min);
+
+        pm10Avg.style.color = pm10Indicator.hex;
+        pm10High.style.color = pm10Indicator.hex;
+        pm10Low.style.color = pm10Indicator.hex;
+        pm25Avg.style.color = pm25Indicator.hex;
+        pm25High.style.color = pm25Indicator.hex;
+        pm25Low.style.color = pm25Indicator.hex;
+    };
+
+    const renderCharts = () => {
+        const periodText = state.range;
+        pm10Title.textContent = `PM10 - Grafik Prediksi (${periodText})`;
+        pm25Title.textContent = `PM2.5 - Grafik Prediksi (${periodText})`;
+
+        const pm10Color = resolveIndicator(stats(state.pm10Series).avg).hex;
+        const pm25Color = resolveIndicator(stats(state.pm25Series).avg).hex;
+
+        pm10Chart.options.scales.x.ticks.maxTicksLimit = state.range === '30 Hari' ? 15 : 24;
+        pm25Chart.options.scales.x.ticks.maxTicksLimit = state.range === '30 Hari' ? 15 : 24;
+
+        pm10Chart.data.labels = state.labels;
+        pm25Chart.data.labels = state.labels;
+        pm10Chart.data.datasets[0].data = state.pm10Series;
+        pm25Chart.data.datasets[0].data = state.pm25Series;
+        pm10Chart.data.datasets[0].borderColor = pm10Color;
+        pm10Chart.data.datasets[0].backgroundColor = pm10Color;
+        pm25Chart.data.datasets[0].borderColor = pm25Color;
+        pm25Chart.data.datasets[0].backgroundColor = pm25Color;
+        pm10Chart.update();
+        pm25Chart.update();
+    };
+
+    const indicatorLabel = (value) => resolveIndicator(value).label;
+
+    const renderTable = () => {
+        const isPm10 = state.activeTab === 'pm10';
+        const series = isPm10 ? state.pm10Series : state.pm25Series;
+        const timeLabel = state.range === '24 Jam' ? 'Jam' : 'Tanggal';
+        tableTimeHead.textContent = timeLabel;
+
+        tabPm10.classList.toggle('bg-primary-300', isPm10);
+        tabPm10.classList.toggle('text-surface-50', isPm10);
+        tabPm10.classList.toggle('text-slate-600', !isPm10);
+        tabPm25.classList.toggle('bg-primary-300', !isPm10);
+        tabPm25.classList.toggle('text-surface-50', !isPm10);
+        tabPm25.classList.toggle('text-slate-600', isPm10);
+
+        tableBody.innerHTML = state.labels.map((label, idx) => {
+            const value = series[idx];
+            const display = value === null || value === undefined ? '-' : value;
+            const indikator = value === null || value === undefined ? '-' : indicatorLabel(value);
+            return `<tr class="border-b border-slate-500/20"><td class="py-2 text-center text-slate-600">${label}</td><td class="py-2 text-center text-slate-600">${display}</td><td class="py-2 text-center text-slate-600">${indikator}</td></tr>`;
         }).join('');
-
-        dateList.querySelectorAll('[data-date-value]').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const value = btn.getAttribute('data-date-value');
-                if (!value) return;
-                selectedDate = value;
-                dateMenu?.classList.add('hidden');
-                renderDatePicker();
-            });
-        });
     };
 
-    const initDatePicker = () => {
-        if (!(dateToggle instanceof HTMLButtonElement) || !(dateMenu instanceof HTMLElement)) return;
-
-        dateToggle.addEventListener('click', () => {
-            dateMenu.classList.toggle('hidden');
-        });
-
-        datePrev?.addEventListener('click', () => {
-            const options = buildDateOptions(selectedDate, 14);
-            const idx = options.indexOf(selectedDate);
-            if (idx > 0) {
-                selectedDate = options[idx - 1];
-                renderDatePicker();
-            }
-        });
-
-        dateNext?.addEventListener('click', () => {
-            const options = buildDateOptions(selectedDate, 14);
-            const idx = options.indexOf(selectedDate);
-            if (idx >= 0 && idx < options.length - 1) {
-                selectedDate = options[idx + 1];
-                renderDatePicker();
-            }
-        });
-
-        document.addEventListener('click', (event) => {
-            if (!dateMenu.contains(event.target) && !dateToggle.contains(event.target)) {
-                dateMenu.classList.add('hidden');
-            }
-        });
-
-        if (
-            dateRangeApply instanceof HTMLButtonElement &&
-            dateRangeStart instanceof HTMLInputElement &&
-            dateRangeEnd instanceof HTMLInputElement
-        ) {
-            dateRangeApply.addEventListener('click', () => {
-                if (!dateRangeStart.value || !dateRangeEnd.value) return;
-                selectedRangeStart = dateRangeStart.value;
-                selectedRangeEnd = dateRangeEnd.value;
-                dateMenu.classList.add('hidden');
-                renderDatePicker();
-            });
-        }
-
-        if (
-            dateMonthApply instanceof HTMLButtonElement &&
-            dateMonthInput instanceof HTMLInputElement
-        ) {
-            dateMonthApply.addEventListener('click', () => {
-                if (!dateMonthInput.value) return;
-                selectedMonth = dateMonthInput.value;
-                dateMenu.classList.add('hidden');
-                renderDatePicker();
-            });
-        }
-
-        renderDatePicker();
+    const loadMeta = async () => {
+        const payload = await api('/api/public/prediction/meta');
+        const data = payload?.data || {};
+        state.hasActiveRun = !!data.active_run;
+        state.availableDates = Array.isArray(data.dates) ? data.dates : [];
+        state.date = data?.defaults?.single || state.availableDates[0] || '';
+        state.rangeStart = data?.defaults?.start || state.date;
+        state.rangeEnd = data?.defaults?.end || state.date;
+        state.month = data?.defaults?.month || (state.date ? state.date.slice(0, 7) : '');
     };
 
-    periodButtons.forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const period = btn.getAttribute('data-period-btn');
-            if (!period || period === activePeriod) return;
-            activePeriod = period;
-            if (activePeriod === '7 Hari') {
-                selectedRangeEnd = selectedDate;
-                selectedRangeStart = addDays(selectedDate, -6);
-            }
-            if (activePeriod === '30 Hari') {
-                selectedMonth = selectedDate.slice(0, 7);
-            }
-            setActivePeriodButton();
-            renderDatePicker();
-            renderSummary();
+    const loadData = async () => {
+        if (!state.hasActiveRun) {
+            state.labels = [];
+            state.pm10Series = [];
+            state.pm25Series = [];
+            renderDateMenu();
+            renderCards();
             renderCharts();
+            renderTable();
+            return;
+        }
+
+        const payload = await api(`/api/public/prediction?${buildQuery()}`);
+        const data = payload?.data || {};
+        const applied = data.applied || {};
+
+        state.labels = Array.isArray(data?.pm10?.labels) ? data.pm10.labels : [];
+        state.pm10Series = Array.isArray(data?.pm10?.series) ? data.pm10.series : [];
+        state.pm25Series = Array.isArray(data?.pm25?.series) ? data.pm25.series : [];
+
+        if (applied.date_single) state.date = applied.date_single;
+        if (applied.date_start) state.rangeStart = applied.date_start;
+        if (applied.date_end) state.rangeEnd = applied.date_end;
+        if (applied.date_month) state.month = applied.date_month;
+
+        renderDateMenu();
+        renderCards();
+        renderCharts();
+        renderTable();
+    };
+
+    periodButtons.forEach((button) => {
+        button.addEventListener('click', async () => {
+            const value = button.getAttribute('data-period-btn');
+            if (!value) return;
+            state.range = value;
+            renderPeriodButtons();
+            renderDateMenu();
+            await loadData();
         });
     });
 
-    pm10TabBtn?.addEventListener('click', () => {
-        activeTab = 'pm10';
-        setActiveTabButton();
+    tabPm10.addEventListener('click', () => {
+        state.activeTab = 'pm10';
         renderTable();
     });
 
-    pm25TabBtn?.addEventListener('click', () => {
-        activeTab = 'pm25';
-        setActiveTabButton();
+    tabPm25.addEventListener('click', () => {
+        state.activeTab = 'pm25';
         renderTable();
     });
 
-    setActivePeriodButton();
-    setActiveTabButton();
-    initDatePicker();
-    renderSummary();
-    renderCharts();
-    renderTable();
+    dateToggle.addEventListener('click', () => {
+        dateMenu.classList.toggle('hidden');
+    });
+
+    datePrev.addEventListener('click', async () => {
+        if (getDateMode(state.range) !== 'single') return;
+        const idx = state.availableDates.indexOf(state.date);
+        if (idx > 0) {
+            state.date = state.availableDates[idx - 1];
+            await loadData();
+        }
+    });
+
+    dateNext.addEventListener('click', async () => {
+        if (getDateMode(state.range) !== 'single') return;
+        const idx = state.availableDates.indexOf(state.date);
+        if (idx >= 0 && idx < state.availableDates.length - 1) {
+            state.date = state.availableDates[idx + 1];
+            await loadData();
+        }
+    });
+
+    rangeApplyBtn.addEventListener('click', async () => {
+        if (!rangeStartInput.value) return;
+        state.rangeStart = rangeStartInput.value;
+        const end = new Date(`${state.rangeStart}T00:00:00`);
+        end.setDate(end.getDate() + 6);
+        state.rangeEnd = end.toISOString().slice(0, 10);
+        dateMenu.classList.add('hidden');
+        renderDateMenu();
+        await loadData();
+    });
+
+    monthApplyBtn.addEventListener('click', async () => {
+        if (!monthInput.value) return;
+        state.month = monthInput.value;
+        dateMenu.classList.add('hidden');
+        renderDateMenu();
+        await loadData();
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!dateMenu.contains(event.target) && !dateToggle.contains(event.target)) {
+            dateMenu.classList.add('hidden');
+        }
+    });
+
+    (async () => {
+        try {
+            await loadMeta();
+            renderPeriodButtons();
+            renderDateMenu();
+            await loadData();
+        } catch (error) {
+            console.error(error);
+            dateDisplay.textContent = 'Gagal memuat data';
+        }
+    })();
 };
 
 document.addEventListener('DOMContentLoaded', initPredictionPage);

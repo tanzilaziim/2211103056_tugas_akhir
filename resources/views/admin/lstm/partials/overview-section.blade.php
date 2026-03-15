@@ -137,7 +137,7 @@
                                 <th class="rounded-tl-xl border-l-2 border-t-2 border-primary-300 px-4 py-3.5 text-left text-base font-bold text-surface-50">Waktu Eksekusi</th>
                                 <th class="border-t-2 border-primary-300 px-4 py-3.5 text-left text-base font-bold text-surface-50">Tanggal Prediksi</th>
                                 <th class="border-t-2 border-primary-300 px-4 py-3.5 text-left text-base font-bold text-surface-50">Status</th>
-                                <th class="border-t-2 border-primary-300 px-4 py-3.5 text-left text-base font-bold text-surface-50">Data Hasil Prediksi</th>
+                                <th class="border-t-2 border-primary-300 px-4 py-3.5 text-left text-base font-bold text-surface-50">Hasil Prediksi</th>
                                 <th class="rounded-tr-xl border-r-2 border-t-2 border-primary-300 px-4 py-3.5 text-left text-base font-bold text-surface-50">Aksi</th>
                             </tr>
                         </thead>

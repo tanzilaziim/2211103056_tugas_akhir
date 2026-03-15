@@ -1,6 +1,6 @@
 @extends('layouts.admin')
-@section('title', 'LSTM Overview Admin')
-@section('admin_page_title', 'LSTM - Overview')
+@section('title', 'LSTM')
+@section('admin_page_title', 'LSTM')
 @section('content')
 <div data-page="admin-lstm-overview" class="min-h-full bg-surface-50">
     <div class="mb-6">

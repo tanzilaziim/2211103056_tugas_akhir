@@ -1,29 +1,53 @@
-import { DATA_BY_RANGE, formatIdDate } from '../shared';
+import { formatIdDate } from '../shared';
 
 const PAGE_SIZE = 12;
 
-const addDays = (isoDate, days) => {
-    const date = new Date(`${isoDate}T00:00:00`);
-    date.setDate(date.getDate() + days);
-    return date.toISOString().slice(0, 10);
+const getDateMode = (range) => {
+    if (range === '7 Hari') return 'range';
+    if (range === '30 Hari') return 'month';
+    return 'single';
 };
 
-const formatShortDate = (isoDate) => {
-    try {
-        const date = new Date(`${isoDate}T00:00:00`);
-        return date.toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric',
-        });
-    } catch {
-        return isoDate;
+const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+const api = async (url) => {
+    const response = await fetch(url, {
+        credentials: 'same-origin',
+        headers: {
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': csrfToken(),
+        },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload?.message || 'Gagal memuat data prediksi.');
+    return payload;
+};
+
+const buildCompactPages = (current, total) => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+    const pages = new Set([1, total, current - 1, current, current + 1]);
+    if (current <= 3) {
+        pages.add(2);
+        pages.add(3);
     }
-};
+    if (current >= total - 2) {
+        pages.add(total - 1);
+        pages.add(total - 2);
+    }
 
-const buildDateOptions = (range, anchor) => {
-    const count = range === '30 Hari' ? 30 : range === '7 Hari' ? 7 : 1;
-    return Array.from({ length: count }, (_, idx) => addDays(anchor, -idx));
+    const sorted = Array.from(pages)
+        .filter((p) => p >= 1 && p <= total)
+        .sort((a, b) => a - b);
+
+    const compact = [];
+    for (let i = 0; i < sorted.length; i += 1) {
+        const page = sorted[i];
+        const prev = sorted[i - 1];
+        if (i > 0 && page - prev > 1) compact.push('...');
+        compact.push(page);
+    }
+    return compact;
 };
 
 const initAdminPredictionData = () => {
@@ -33,13 +57,15 @@ const initAdminPredictionData = () => {
     const state = {
         range: '24 Jam',
         page: 1,
-        category: 'Semua',
-        date: '2026-01-01',
-        rangeStart: '2026-01-01',
-        rangeEnd: '2026-01-07',
-        month: '2026-01',
+        date: '',
+        rangeStart: '',
+        rangeEnd: '',
+        month: '',
         showDateMenu: false,
-        showCategoryMenu: false,
+        availableDates: [],
+        availableMonths: [],
+        rows: [],
+        hasActiveRun: false,
     };
 
     const rangeButtons = root.querySelectorAll('[data-range]');
@@ -54,34 +80,31 @@ const initAdminPredictionData = () => {
     const dateModeRange = root.querySelector('[data-date-mode="range"]');
     const dateModeMonth = root.querySelector('[data-date-mode="month"]');
     const rangeStartInput = root.querySelector('[data-prediction-range-start]');
-    const rangeEndInput = root.querySelector('[data-prediction-range-end]');
+    const rangePreview = root.querySelector('[data-prediction-range-preview]');
     const rangeApplyBtn = root.querySelector('[data-prediction-range-apply]');
     const monthInput = root.querySelector('[data-prediction-month]');
     const monthApplyBtn = root.querySelector('[data-prediction-month-apply]');
-    const categoryToggle = root.querySelector('[data-prediction-category-toggle]');
-    const categoryLabel = root.querySelector('[data-prediction-category-label]');
-    const categoryMenu = root.querySelector('[data-prediction-category-menu]');
-    const categoryOptions = root.querySelectorAll('[data-prediction-category-option]');
     const tableBody = root.querySelector('[data-prediction-table-body]');
     const pagination = root.querySelector('[data-prediction-pagination]');
 
     if (
         !dateToggle || !dateMenu || !dateLabel || !dateCurrent || !datePrev || !dateNext || !dateList ||
         !dateModeSingle || !dateModeRange || !dateModeMonth ||
-        !rangeStartInput || !rangeEndInput || !rangeApplyBtn || !monthInput || !monthApplyBtn ||
-        !categoryToggle || !categoryLabel || !categoryMenu || !categoryOptions.length ||
+        !rangeStartInput || !rangePreview || !rangeApplyBtn || !monthInput || !monthApplyBtn ||
         !tableBody || !pagination
     ) return;
 
-    const getDateMode = () => {
-        if (state.range === '7 Hari') return 'range';
-        if (state.range === '30 Hari') return 'month';
-        return 'single';
+    const buildQuery = () => {
+        const params = new URLSearchParams();
+        const mapRange = state.range === '7 Hari' ? '7hari' : state.range === '30 Hari' ? '30hari' : '24jam';
+        params.set('range', mapRange);
+
+        const mode = getDateMode(state.range);
+        if (mode === 'single') params.set('date_single', state.date);
+        if (mode === 'range') params.set('date_start', state.rangeStart);
+        if (mode === 'month') params.set('date_month', state.month);
+        return params.toString();
     };
-
-    const getDateOptions = () => buildDateOptions(state.range, state.date);
-
-    const getRows = () => DATA_BY_RANGE[state.range] || [];
 
     const renderRange = () => {
         rangeButtons.forEach((button) => {
@@ -94,54 +117,75 @@ const initAdminPredictionData = () => {
     };
 
     const renderDate = () => {
-        const mode = getDateMode();
-
+        const mode = getDateMode(state.range);
         dateModeSingle.classList.toggle('hidden', mode !== 'single');
         dateModeRange.classList.toggle('hidden', mode !== 'range');
         dateModeMonth.classList.toggle('hidden', mode !== 'month');
 
         if (mode === 'single') {
-            dateLabel.textContent = formatIdDate(state.date);
-            dateCurrent.textContent = formatIdDate(state.date);
-        } else if (mode === 'range') {
-            dateLabel.textContent = `${formatShortDate(state.rangeStart)} - ${formatShortDate(state.rangeEnd)}`;
-            rangeStartInput.value = state.rangeStart;
-            rangeEndInput.value = state.rangeEnd;
-        } else {
-            const monthDate = `${state.month}-01`;
-            dateLabel.textContent = formatIdDate(monthDate).replace(/^\d+\s/, '');
-            monthInput.value = state.month;
+            dateLabel.textContent = state.date ? formatIdDate(state.date) : '-';
+            dateCurrent.textContent = state.date ? formatIdDate(state.date) : '-';
+            const options = state.availableDates;
+            const currentIdx = options.indexOf(state.date);
+            datePrev.disabled = currentIdx <= 0;
+            dateNext.disabled = currentIdx < 0 || currentIdx >= options.length - 1;
+            dateList.innerHTML = options.map((dateStr) => {
+                const active = dateStr === state.date;
+                return `<button type="button" data-date-value="${dateStr}" class="w-full rounded-lg px-3 py-1.5 text-left text-sm transition-colors ${active ? 'bg-primary-300 text-surface-50' : 'text-surface-300 hover:bg-surface-200'}">${formatIdDate(dateStr)}</button>`;
+            }).join('');
+            dateList.querySelectorAll('[data-date-value]').forEach((btn) => {
+                btn.addEventListener('click', async () => {
+                    const val = btn.getAttribute('data-date-value');
+                    if (!val) return;
+                    state.date = val;
+                    state.page = 1;
+                    state.showDateMenu = false;
+                    dateMenu.classList.add('hidden');
+                    renderDate();
+                    await loadRows();
+                });
+            });
+            return;
         }
 
-        const options = getDateOptions();
-        const currentIdx = options.indexOf(state.date);
-        datePrev.disabled = currentIdx <= 0;
-        dateNext.disabled = currentIdx < 0 || currentIdx >= options.length - 1;
+        if (mode === 'range') {
+            dateLabel.textContent = state.rangeStart && state.rangeEnd ? `${formatIdDate(state.rangeStart)} - ${formatIdDate(state.rangeEnd)}` : '-';
+            rangeStartInput.value = state.rangeStart || '';
+            rangePreview.textContent = state.rangeStart && state.rangeEnd
+                ? `${formatIdDate(state.rangeStart)} s.d ${formatIdDate(state.rangeEnd)}`
+                : '-';
+            datePrev.disabled = true;
+            dateNext.disabled = true;
+            dateList.innerHTML = '';
+            return;
+        }
 
-        dateList.innerHTML = options.map((dateStr) => {
-            const active = dateStr === state.date;
-            return `<button type="button" data-date-value="${dateStr}" class="w-full rounded-lg px-3 py-1.5 text-left text-sm transition-colors ${active ? 'bg-primary-300 text-surface-50' : 'text-surface-300 hover:bg-surface-200'}">${formatShortDate(dateStr)}</button>`;
-        }).join('');
-
-        dateList.querySelectorAll('[data-date-value]').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const val = btn.getAttribute('data-date-value');
-                if (!val) return;
-                state.date = val;
-                state.showDateMenu = false;
-                dateMenu.classList.add('hidden');
-                renderDate();
-                renderTable();
-            });
-        });
+        dateLabel.textContent = state.month ? formatIdDate(`${state.month}-01`).replace(/^\d+\s/, '') : '-';
+        monthInput.value = state.month || '';
+        datePrev.disabled = true;
+        dateNext.disabled = true;
+        dateList.innerHTML = '';
     };
 
     const renderTable = () => {
-        const rows = getRows();
-        const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+        const filteredRows = state.rows;
+
+        const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
         state.page = Math.min(state.page, totalPages);
         const start = (state.page - 1) * PAGE_SIZE;
-        const pageRows = rows.slice(start, start + PAGE_SIZE);
+        const pageRows = filteredRows.slice(start, start + PAGE_SIZE);
+
+        if (!state.hasActiveRun) {
+            tableBody.innerHTML = `
+                <tr class="border-x border-b border-surface-200">
+                    <td colspan="4" class="rounded-b-[15px] px-5 py-8 text-center text-base text-surface-300">
+                        Belum ada run aktif. Pilih hasil run sukses di halaman LSTM terlebih dahulu.
+                    </td>
+                </tr>
+            `;
+            pagination.innerHTML = '';
+            return;
+        }
 
         if (!pageRows.length) {
             tableBody.innerHTML = `
@@ -151,26 +195,34 @@ const initAdminPredictionData = () => {
                     </td>
                 </tr>
             `;
-        } else {
-            tableBody.innerHTML = pageRows.map((row, idx) => `
-                <tr class="border-x border-b border-surface-200">
-                    <td class="${idx === pageRows.length - 1 ? 'rounded-bl-[15px]' : ''} px-5 py-4 text-base font-normal text-surface-300">${row.time}</td>
-                    <td class="px-5 py-4 text-base font-normal text-surface-300">${state.category === 'PM2.5' ? '-' : row.pm10}</td>
-                    <td class="px-5 py-4 text-base font-normal text-surface-300">${state.category === 'PM10' ? '-' : row.pm25}</td>
-                    <td class="${idx === pageRows.length - 1 ? 'rounded-br-[15px]' : ''} px-5 py-4 text-base font-normal text-surface-300">${row.indicator}</td>
-                </tr>
-            `).join('');
+            pagination.innerHTML = '';
+            return;
         }
 
-        const pageButtons = [];
-        const buttonTpl = (label, page, disabled, active = false) => `
+        tableBody.innerHTML = pageRows.map((row, idx) => `
+            <tr class="border-x border-b border-surface-200">
+                <td class="${idx === pageRows.length - 1 ? 'rounded-bl-[15px]' : ''} px-5 py-4 text-base font-normal text-surface-300">${row.jam || '-'}</td>
+                <td class="px-5 py-4 text-base font-normal text-surface-300">${row.pm10 ?? '-'}</td>
+                <td class="px-5 py-4 text-base font-normal text-surface-300">${row.pm25 ?? '-'}</td>
+                <td class="${idx === pageRows.length - 1 ? 'rounded-br-[15px]' : ''} px-5 py-4 text-base font-normal text-surface-300">${row.indikator || '-'}</td>
+            </tr>
+        `).join('');
+
+        const buttonTpl = (label, page, disabled, active = false, isDots = false) => `
             <button type="button" data-page="${page}" ${disabled ? 'disabled' : ''}
                 class="flex h-[30px] items-center justify-center rounded-[10px] border border-surface-200 text-base font-bold transition-colors ${
                     active ? 'w-[30px] bg-primary-300 text-surface-50' : 'bg-primary-50 text-surface-300 hover:bg-surface-200'
-                } ${label === 'Prev' || label === 'Next' ? 'w-[62px]' : 'w-[30px]'} disabled:opacity-40">${label}</button>`;
+                } ${label === 'Prev' || label === 'Next' ? 'w-[62px]' : (isDots ? 'w-[36px]' : 'w-[30px]')} disabled:opacity-40 ${isDots ? 'cursor-default hover:bg-primary-50' : ''}">${label}</button>`;
 
-        pageButtons.push(buttonTpl('Prev', state.page - 1, state.page === 1));
-        for (let p = 1; p <= totalPages; p += 1) pageButtons.push(buttonTpl(String(p), p, false, p === state.page));
+        const pageButtons = [buttonTpl('Prev', state.page - 1, state.page === 1)];
+        const compactPages = buildCompactPages(state.page, totalPages);
+        compactPages.forEach((token) => {
+            if (token === '...') {
+                pageButtons.push(buttonTpl('...', -1, true, false, true));
+                return;
+            }
+            pageButtons.push(buttonTpl(String(token), token, false, token === state.page));
+        });
         pageButtons.push(buttonTpl('Next', state.page + 1, state.page === totalPages));
         pagination.innerHTML = pageButtons.join('');
 
@@ -186,18 +238,42 @@ const initAdminPredictionData = () => {
         });
     };
 
+    const loadMeta = async () => {
+        const payload = await api('/admin/api/prediction/meta');
+        const data = payload?.data || {};
+        state.hasActiveRun = !!data.active_run;
+        state.availableDates = Array.isArray(data.dates) ? data.dates : [];
+        state.availableMonths = Array.isArray(data.months) ? data.months : [];
+        state.date = data?.defaults?.single || state.availableDates[0] || '';
+        state.rangeStart = data?.defaults?.start || state.date;
+        state.rangeEnd = data?.defaults?.end || state.date;
+        state.month = data?.defaults?.month || state.availableMonths[0] || '';
+    };
+
+    const loadRows = async () => {
+        if (!state.hasActiveRun) {
+            state.rows = [];
+            renderTable();
+            return;
+        }
+        const payload = await api(`/admin/api/prediction/data?${buildQuery()}`);
+        state.rows = Array.isArray(payload?.data?.rows) ? payload.data.rows : [];
+        const applied = payload?.data?.applied || {};
+        if (applied.date_single) state.date = applied.date_single;
+        if (applied.date_start) state.rangeStart = applied.date_start;
+        if (applied.date_end) state.rangeEnd = applied.date_end;
+        if (applied.date_month) state.month = applied.date_month;
+        renderDate();
+        renderTable();
+    };
+
     rangeButtons.forEach((button) => {
-        button.addEventListener('click', () => {
+        button.addEventListener('click', async () => {
             state.range = button.getAttribute('data-range') || '24 Jam';
             state.page = 1;
-            const options = getDateOptions();
-            if (!options.includes(state.date)) state.date = options[0];
-            state.rangeStart = options[options.length - 1] || state.date;
-            state.rangeEnd = options[0] || state.date;
-            state.month = state.date.slice(0, 7);
             renderRange();
             renderDate();
-            renderTable();
+            await loadRows();
         });
     });
 
@@ -206,63 +282,49 @@ const initAdminPredictionData = () => {
         dateMenu.classList.toggle('hidden', !state.showDateMenu);
     });
 
-    datePrev.addEventListener('click', () => {
-        if (getDateMode() !== 'single') return;
-        const options = getDateOptions();
-        const idx = options.indexOf(state.date);
+    datePrev.addEventListener('click', async () => {
+        if (getDateMode(state.range) !== 'single') return;
+        const idx = state.availableDates.indexOf(state.date);
         if (idx > 0) {
-            state.date = options[idx - 1];
+            state.date = state.availableDates[idx - 1];
+            state.page = 1;
             renderDate();
-            renderTable();
+            await loadRows();
         }
     });
 
-    dateNext.addEventListener('click', () => {
-        if (getDateMode() !== 'single') return;
-        const options = getDateOptions();
-        const idx = options.indexOf(state.date);
-        if (idx >= 0 && idx < options.length - 1) {
-            state.date = options[idx + 1];
+    dateNext.addEventListener('click', async () => {
+        if (getDateMode(state.range) !== 'single') return;
+        const idx = state.availableDates.indexOf(state.date);
+        if (idx >= 0 && idx < state.availableDates.length - 1) {
+            state.date = state.availableDates[idx + 1];
+            state.page = 1;
             renderDate();
-            renderTable();
+            await loadRows();
         }
     });
 
-    rangeApplyBtn.addEventListener('click', () => {
-        if (!rangeStartInput.value || !rangeEndInput.value) return;
+    rangeApplyBtn.addEventListener('click', async () => {
+        if (!rangeStartInput.value) return;
         state.rangeStart = rangeStartInput.value;
-        state.rangeEnd = rangeEndInput.value;
+        const end = new Date(`${state.rangeStart}T00:00:00`);
+        end.setDate(end.getDate() + 6);
+        state.rangeEnd = end.toISOString().slice(0, 10);
+        state.page = 1;
         state.showDateMenu = false;
         dateMenu.classList.add('hidden');
         renderDate();
-        renderTable();
+        await loadRows();
     });
 
-    monthApplyBtn.addEventListener('click', () => {
+    monthApplyBtn.addEventListener('click', async () => {
         if (!monthInput.value) return;
         state.month = monthInput.value;
+        state.page = 1;
         state.showDateMenu = false;
         dateMenu.classList.add('hidden');
         renderDate();
-        renderTable();
-    });
-
-    categoryToggle.addEventListener('click', () => {
-        state.showCategoryMenu = !state.showCategoryMenu;
-        categoryMenu.classList.toggle('hidden', !state.showCategoryMenu);
-    });
-
-    categoryOptions.forEach((option) => {
-        option.addEventListener('click', () => {
-            const value = option.getAttribute('data-prediction-category-option');
-            if (!value) return;
-            state.category = value;
-            categoryLabel.textContent = value;
-            state.page = 1;
-            state.showCategoryMenu = false;
-            categoryMenu.classList.add('hidden');
-            renderTable();
-        });
+        await loadRows();
     });
 
     document.addEventListener('click', (event) => {
@@ -270,16 +332,23 @@ const initAdminPredictionData = () => {
             state.showDateMenu = false;
             dateMenu.classList.add('hidden');
         }
-        if (!categoryMenu.contains(event.target) && !categoryToggle.contains(event.target)) {
-            state.showCategoryMenu = false;
-            categoryMenu.classList.add('hidden');
-        }
     });
 
-    categoryLabel.textContent = state.category;
-    renderRange();
-    renderDate();
-    renderTable();
+    (async () => {
+        try {
+            await loadMeta();
+            renderRange();
+            renderDate();
+            await loadRows();
+        } catch (error) {
+            tableBody.innerHTML = `
+                <tr class="border-x border-b border-surface-200">
+                    <td colspan="4" class="rounded-b-[15px] px-5 py-8 text-center text-base text-ispu-sangat-tidak-sehat">${error.message}</td>
+                </tr>
+            `;
+            pagination.innerHTML = '';
+        }
+    })();
 };
 
 document.addEventListener('DOMContentLoaded', initAdminPredictionData);

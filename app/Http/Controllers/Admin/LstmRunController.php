@@ -978,7 +978,7 @@ class LstmRunController extends Controller
     {
         $formatLabel = fn (Carbon $date) => $range === '24jam'
             ? $date->format('H:00')
-            : $date->format('d M');
+            : $date->format('d/m');
 
         $grouped = [];
         foreach ($predictions as $row) {

@@ -78,17 +78,18 @@ class PublicActualDataController extends Controller
         $rows = AirQualityActual::query()
             ->whereDate('observed_at', $date->toDateString())
             ->orderBy('observed_at')
-            ->get(['pm10', 'pm25']);
+            ->get(['observed_at', 'pm10', 'pm25']);
 
         $pm10 = [];
         $pm25 = [];
 
         foreach ($rows as $idx => $row) {
+            $label = CarbonImmutable::parse($row->observed_at)->format('H:i');
             if ($row->pm10 !== null) {
-                $pm10[] = ['hour' => $idx, 'value' => (float) $row->pm10];
+                $pm10[] = ['hour' => $idx, 'label' => $label, 'value' => (float) $row->pm10];
             }
             if ($row->pm25 !== null) {
-                $pm25[] = ['hour' => $idx, 'value' => (float) $row->pm25];
+                $pm25[] = ['hour' => $idx, 'label' => $label, 'value' => (float) $row->pm25];
             }
         }
 
@@ -125,11 +126,12 @@ class PublicActualDataController extends Controller
 
         foreach ($rows as $idx => $row) {
             $dayIndex = $idx + 1;
+            $label = CarbonImmutable::parse((string) $row->day)->format('d/m');
             if ($row->avg_pm10 !== null) {
-                $pm10[] = ['hour' => $dayIndex, 'value' => round((float) $row->avg_pm10, 2)];
+                $pm10[] = ['hour' => $dayIndex, 'label' => $label, 'value' => round((float) $row->avg_pm10, 2)];
             }
             if ($row->avg_pm25 !== null) {
-                $pm25[] = ['hour' => $dayIndex, 'value' => round((float) $row->avg_pm25, 2)];
+                $pm25[] = ['hour' => $dayIndex, 'label' => $label, 'value' => round((float) $row->avg_pm25, 2)];
             }
         }
 

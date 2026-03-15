@@ -10,7 +10,11 @@
 <body class="h-screen overflow-hidden bg-surface-50 text-surface-400 antialiased">
     @php
         $adminPageTitle = trim($__env->yieldContent('admin_page_title')) ?: 'Dashboard';
-        $adminDatasetName = trim($__env->yieldContent('admin_dataset_name')) ?: '2025.zip';
+        $latestImportedDataset = \App\Models\DataImport::query()
+            ->whereIn('status', ['processed', 'success'])
+            ->latest('id')
+            ->value('original_name');
+        $adminDatasetName = trim($__env->yieldContent('admin_dataset_name')) ?: ($latestImportedDataset ?: 'Belum ada dataset');
     @endphp
 
     <div class="relative flex h-screen overflow-hidden bg-surface-50" data-admin-shell>

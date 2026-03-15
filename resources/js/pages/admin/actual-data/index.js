@@ -125,8 +125,8 @@ const initAdminActualData = () => {
                     data: [],
                     borderColor: color,
                     backgroundColor: color,
-                    pointRadius: 3,
-                    pointHoverRadius: 5,
+                    pointRadius: 2.5,
+                    pointHoverRadius: 4,
                     borderWidth: 2,
                     tension: 0.25,
                 }],
@@ -139,7 +139,7 @@ const initAdminActualData = () => {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            title: (items) => `Waktu ${items[0]?.label}`,
+                            title: (items) => `Jam ${items[0]?.label}`,
                             label: (item) => `${item.parsed.y} ug/m3`,
                         },
                     },

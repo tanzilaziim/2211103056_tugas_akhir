@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Data Aktual Admin')
+@section('title', 'Data Aktual')
 @section('admin_page_title', 'Data Aktual')
 
 @section('content')
@@ -45,14 +45,14 @@
             </div>
 
             <div class="rounded-2xl border border-surface-200 bg-surface-100 p-5 shadow-sm">
-                <h2 class="mb-3 text-xl font-bold text-surface-400">Grafik PM10</h2>
+                <h2 class="mb-3 text-xl font-bold text-surface-400">PM10 - Grafik Data Aktual</h2>
                 <div class="h-[200px] w-full">
                     <canvas id="admin-actual-pm10-chart"></canvas>
                 </div>
             </div>
 
             <div class="rounded-2xl border border-surface-200 bg-surface-100 p-5 shadow-sm">
-                <h2 class="mb-3 text-xl font-bold text-surface-400">Grafik PM2.5</h2>
+                <h2 class="mb-3 text-xl font-bold text-surface-400">PM2.5 - Grafik Data Aktual</h2>
                 <div class="h-[200px] w-full">
                     <canvas id="admin-actual-pm25-chart"></canvas>
                 </div>

@@ -130,6 +130,7 @@ const normalizeRanges = (payloadRanges, fallbackRanges) => {
             ? points
                   .map((point, idx) => ({
                       hour: Number(point?.hour ?? idx),
+                      label: typeof point?.label === 'string' ? point.label : null,
                       value: Number(point?.value ?? 0),
                   }))
                   .filter((point) => Number.isFinite(point.hour) && Number.isFinite(point.value))
@@ -212,11 +213,11 @@ const initActualDataPage = () => {
     const getActiveData = () => rangeData[activeRange] || fallbackRanges[activeRange] || fallbackRanges['24 Jam'];
 
     const makeLabels = (data) => {
-        if (activeRange === '24 Jam') {
-            return data.map((item) => String(item.hour));
-        }
-
-        return data.map((item) => `H${item.hour}`);
+        return data.map((item) => {
+            if (item?.label) return item.label;
+            if (activeRange === '24 Jam') return `${String(item.hour).padStart(2, '0')}:00`;
+            return String(item.hour);
+        });
     };
 
     const buildChart = (ctx, color, pollutant) =>
@@ -230,10 +231,10 @@ const initActualDataPage = () => {
                         data: [],
                         borderColor: color,
                         backgroundColor: color,
-                        pointRadius: 4,
-                        pointHoverRadius: 5,
+                        pointRadius: 2.5,
+                        pointHoverRadius: 4,
                         borderWidth: 2,
-                        tension: 0,
+                        tension: 0.25,
                     },
                 ],
             },
@@ -247,7 +248,7 @@ const initActualDataPage = () => {
                         callbacks: {
                             title: (items) => {
                                 const label = items[0]?.label ?? '';
-                                return activeRange === '24 Jam' ? `Jam ${label}:00` : `${label}`;
+                                return activeRange === '24 Jam' ? `Jam ${label}` : label;
                             },
                             label: (item) => `${item.parsed.y} ug/m3`,
                         },
@@ -256,17 +257,17 @@ const initActualDataPage = () => {
                 scales: {
                     x: {
                         ticks: {
-                            color: '#475569',
+                            color: '#94a3b8',
                             maxRotation: 0,
                             autoSkip: true,
-                            maxTicksLimit: activeRange === '30 Hari' ? 10 : 12,
+                            maxTicksLimit: activeRange === '30 Hari' ? 15 : 24,
                         },
-                        grid: { color: '#E2E8F0' },
-                        border: { color: '#475569' },
+                        grid: { color: '#e2e8f0', drawOnChartArea: false },
+                        border: { color: '#cbd5e1' },
                     },
                     y: {
-                        ticks: { color: '#475569' },
-                        grid: { color: '#E2E8F0' },
+                        ticks: { color: '#94a3b8' },
+                        grid: { color: '#e2e8f0' },
                         border: { display: false },
                     },
                 },
@@ -347,18 +348,18 @@ const initActualDataPage = () => {
         pm10Chart.data.datasets[0].data = pm10.map((item) => item.value);
         pm10Chart.data.datasets[0].borderColor = pm10Color;
         pm10Chart.data.datasets[0].backgroundColor = pm10Color;
-        pm10Chart.options.scales.x.ticks.maxTicksLimit = activeRange === '30 Hari' ? 10 : 12;
+        pm10Chart.options.scales.x.ticks.maxTicksLimit = activeRange === '30 Hari' ? 15 : 24;
         pm10Chart.update();
 
         pm25Chart.data.labels = makeLabels(pm25);
         pm25Chart.data.datasets[0].data = pm25.map((item) => item.value);
         pm25Chart.data.datasets[0].borderColor = pm25Color;
         pm25Chart.data.datasets[0].backgroundColor = pm25Color;
-        pm25Chart.options.scales.x.ticks.maxTicksLimit = activeRange === '30 Hari' ? 10 : 12;
+        pm25Chart.options.scales.x.ticks.maxTicksLimit = activeRange === '30 Hari' ? 15 : 24;
         pm25Chart.update();
 
-        if (pm10TitleEl) pm10TitleEl.textContent = `PM10 - Data Aktual ${activeRange}`;
-        if (pm25TitleEl) pm25TitleEl.textContent = `PM2.5 - Data Aktual ${activeRange}`;
+        if (pm10TitleEl) pm10TitleEl.textContent = `PM10 - Grafik Data Aktual (${activeRange})`;
+        if (pm25TitleEl) pm25TitleEl.textContent = `PM2.5 - Grafik Data Aktual (${activeRange})`;
     };
 
     const setActiveRangeButton = () => {

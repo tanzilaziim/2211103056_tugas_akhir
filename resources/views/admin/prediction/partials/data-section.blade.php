@@ -1,9 +1,3 @@
-@extends('layouts.admin')
-
-@section('title', 'Prediksi Data Admin')
-@section('admin_page_title', 'Prediksi - Data')
-
-@section('content')
 <div data-page="admin-prediction-data" class="min-h-full bg-surface-50">
     <div class="mb-8">
         <h1 class="text-3xl font-bold text-surface-400">Hasil Prediksi</h1>
@@ -44,9 +38,9 @@
                         </div>
 
                         <div data-date-mode="range" class="hidden space-y-2">
-                            <p class="text-xs font-medium text-surface-300">Pilih rentang 7 hari</p>
+                            <p class="text-xs font-medium text-surface-300">Pilih tanggal awal (otomatis 7 hari)</p>
                             <input data-prediction-range-start type="date" class="w-full rounded-lg border border-surface-200 px-3 py-2 text-sm text-surface-300 outline-none focus:border-primary-300">
-                            <input data-prediction-range-end type="date" class="w-full rounded-lg border border-surface-200 px-3 py-2 text-sm text-surface-300 outline-none focus:border-primary-300">
+                            <p data-prediction-range-preview class="rounded-lg bg-primary-50 px-3 py-2 text-xs text-primary-300"></p>
                             <button type="button" data-prediction-range-apply class="w-full rounded-lg bg-primary-300 px-3 py-2 text-sm font-medium text-surface-50">Terapkan</button>
                         </div>
 
@@ -58,19 +52,6 @@
                     </div>
                 </div>
 
-                <div class="inline-flex items-center gap-2 rounded-full border border-primary-300 bg-surface-100 px-4 py-2">
-                    <div class="relative">
-                        <button type="button" data-prediction-category-toggle class="inline-flex min-w-[110px] items-center justify-between gap-2 text-sm text-surface-300">
-                            <span data-prediction-category-label>Semua</span>
-                            <i class="ph ph-caret-down text-base text-primary-300"></i>
-                        </button>
-                        <div data-prediction-category-menu class="absolute right-0 top-full z-20 mt-2 hidden w-36 rounded-xl border border-surface-200 bg-surface-100 p-1 shadow-lg">
-                            <button type="button" data-prediction-category-option="Semua" class="w-full rounded-lg px-3 py-2 text-left text-sm text-surface-300 hover:bg-surface-200">Semua</button>
-                            <button type="button" data-prediction-category-option="PM10" class="w-full rounded-lg px-3 py-2 text-left text-sm text-surface-300 hover:bg-surface-200">PM10</button>
-                            <button type="button" data-prediction-category-option="PM2.5" class="w-full rounded-lg px-3 py-2 text-left text-sm text-surface-300 hover:bg-surface-200">PM2.5</button>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -93,4 +74,3 @@
         <div class="flex items-center justify-end gap-1.5 px-7 py-5" data-prediction-pagination></div>
     </div>
 </div>
-@endsection

@@ -23,6 +23,33 @@ const toUiStatus = (status) => {
     return status || '-';
 };
 
+const buildCompactPages = (current, total) => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+    const pages = new Set([1, total, current - 1, current, current + 1]);
+    if (current <= 3) {
+        pages.add(2);
+        pages.add(3);
+    }
+    if (current >= total - 2) {
+        pages.add(total - 1);
+        pages.add(total - 2);
+    }
+
+    const sorted = Array.from(pages)
+        .filter((p) => p >= 1 && p <= total)
+        .sort((a, b) => a - b);
+
+    const compact = [];
+    for (let i = 0; i < sorted.length; i += 1) {
+        const page = sorted[i];
+        const prev = sorted[i - 1];
+        if (i > 0 && page - prev > 1) compact.push('...');
+        compact.push(page);
+    }
+    return compact;
+};
+
 const initLstmOverview = () => {
     const root = document.querySelector('[data-page="admin-lstm-overview"]');
     if (!root) return;
@@ -33,14 +60,14 @@ const initLstmOverview = () => {
         controlRange: '30hari',
         controlDate: { single: baseDate, start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
         tableRange: '24jam',
-        tableDate: { single: baseDate, start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
+        tableDate: { single: 'all', start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
         evalRange: '24jam',
         evalDate: { single: baseDate, start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
-        evalRunDate: { single: baseDate, start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
+        evalRunDate: { single: 'all', start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
         evalRun: null,
         logRange: '24jam',
         logDate: { single: baseDate, start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
-        logRunDate: { single: baseDate, start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
+        logRunDate: { single: 'all', start: addDays(baseDate, -6), end: baseDate, month: baseDate.slice(0, 7) },
         logRun: null,
         logOpenSteps: new Set(),
         tableRows: [...MOCK_DATA],
@@ -54,6 +81,7 @@ const initLstmOverview = () => {
         statusSessionActive: false,
         statusRunId: null,
         runRequestedAtMs: null,
+        runDateDefaultInitialized: false,
     };
 
     const tabButtons = root.querySelectorAll('[data-lstm-tab]');
@@ -279,7 +307,7 @@ const initLstmOverview = () => {
         data: {
             labels: [],
             datasets: [
-                { label: 'Aktual', data: [], borderColor: color, backgroundColor: color, borderDash: [6, 4], pointRadius: 4, pointHoverRadius: 5, borderWidth: 2, tension: 0 },
+                { label: 'Aktual', data: [], borderColor: color, backgroundColor: color, borderDash: [6, 4], pointRadius: 2.5, pointHoverRadius: 4, borderWidth: 2, tension: 0.25 },
                 { label: 'Prediksi', data: [], borderColor: color, backgroundColor: color, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2, tension: 0 },
             ],
         },
@@ -295,19 +323,19 @@ const initLstmOverview = () => {
                             const label = items[0]?.label ?? '';
                             return state.evalRange === '24jam' ? `Jam ${label}` : `Tanggal ${label}`;
                         },
-                        label: (item) => `${item.dataset.label}: ${item.parsed.y}`,
+                        label: (item) => `${item.dataset.label}: ${item.parsed.y} ug/m3`,
                     },
                 },
             },
             scales: {
                 x: {
-                    ticks: { color: '#64748B', maxRotation: 0, autoSkip: true, maxTicksLimit: maxTicks },
-                    grid: { color: '#E2E8F0', drawOnChartArea: false },
-                    border: { color: '#CBD5E1' },
+                    ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: true, maxTicksLimit: maxTicks },
+                    grid: { color: '#e2e8f0', drawOnChartArea: false },
+                    border: { color: '#cbd5e1' },
                 },
                 y: {
-                    ticks: { color: '#64748B' },
-                    grid: { color: '#E2E8F0' },
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: '#e2e8f0' },
                     border: { display: false },
                 },
             },
@@ -460,6 +488,48 @@ const initLstmOverview = () => {
         if (!state.logRun || !rows.find((row) => Number(row.id) === Number(state.logRun))) {
             state.logRun = fallbackRunId;
         }
+
+        const selectedEvalRow = rows.find((row) => Number(row.id) === Number(state.evalRun)) || null;
+        const selectedLogRow = rows.find((row) => Number(row.id) === Number(state.logRun)) || null;
+        const selectedEvalDate = extractRunDate(selectedEvalRow?.waktu_eksekusi || '');
+        const selectedLogDate = extractRunDate(selectedLogRow?.waktu_eksekusi || '');
+
+        if (rows.length === 0) {
+            state.tableDate.single = 'all';
+            state.evalRunDate.single = 'all';
+            state.logRunDate.single = 'all';
+            renderTableDate?.();
+            renderEvalRunDate?.();
+            renderLogRunDate?.();
+        }
+
+        if (!state.runDateDefaultInitialized) {
+            if (rows.length === 0) {
+                state.tableDate.single = 'all';
+                state.evalRunDate.single = 'all';
+                state.logRunDate.single = 'all';
+            } else {
+                const selectedTableRow = rows.find((row) => Number(row.id) === Number(state.activeRunId || state.evalRun || state.logRun)) || rows[0];
+                const selectedTableDate = extractRunDate(selectedTableRow?.waktu_eksekusi || '');
+                state.tableDate.single = selectedTableDate || 'all';
+                state.evalRunDate.single = selectedEvalDate || 'all';
+                state.logRunDate.single = selectedLogDate || 'all';
+            }
+            state.runDateDefaultInitialized = true;
+            renderTableDate?.();
+            renderEvalRunDate?.();
+            renderLogRunDate?.();
+        }
+
+        if (selectedEvalDate && state.evalRunDate.single !== 'all') {
+            state.evalRunDate.single = selectedEvalDate;
+            renderEvalRunDate?.();
+        }
+        if (selectedLogDate && state.logRunDate.single !== 'all') {
+            state.logRunDate.single = selectedLogDate;
+            renderLogRunDate?.();
+        }
+
         renderRunMenus();
     };
 
@@ -644,8 +714,8 @@ const initLstmOverview = () => {
                         ${
                             row.status === 'Failed'
                                 ? '<span class="text-sm text-surface-300">-</span>'
-                                : `<button type="button" data-view="${row.id}" class="inline-flex items-center gap-1.5 text-base text-surface-300 underline transition-colors hover:text-primary-300">
-                                    <i class="ph ph-file text-xl text-primary-300"></i>
+                                : `<button type="button" data-view="${row.id}" class="inline-flex items-center gap-1.5 text-base text-surface-300 transition-colors hover:text-primary-300">
+                                    <i class="ph ph-eye text-xl text-primary-300"></i>
                                     Lihat
                                 </button>`
                         }
@@ -700,8 +770,16 @@ const initLstmOverview = () => {
             button.addEventListener('click', () => {
                 const id = Number(button.getAttribute('data-view'));
                 if (!Number.isNaN(id)) {
+                    const row = state.tableRows.find((item) => Number(item.id) === id);
+                    const runDate = extractRunDate(row?.waktuEksekusi || '');
                     state.evalRun = id;
                     state.logRun = id;
+                    if (runDate) {
+                        state.evalRunDate.single = runDate;
+                        state.logRunDate.single = runDate;
+                        renderEvalRunDate?.();
+                        renderLogRunDate?.();
+                    }
                     renderRunMenus();
                     renderEvaluation();
                     renderLogSteps();
@@ -720,11 +798,16 @@ const initLstmOverview = () => {
             });
         });
 
+        const compactPages = buildCompactPages(state.page, totalPages);
         const pages = [];
         pages.push(`<button type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''} class="rounded-[10px] border border-surface-200 bg-primary-50 px-4 py-1.5 text-base font-bold text-surface-300 transition-colors hover:bg-surface-200 disabled:opacity-50">Prev</button>`);
-        for (let page = 1; page <= totalPages; page += 1) {
-            pages.push(`<button type="button" data-page="${page}" class="h-[30px] w-[30px] rounded-[10px] border border-surface-200 text-base font-bold ${page === state.page ? 'bg-primary-300 text-surface-50' : 'bg-primary-50 text-surface-300 hover:bg-surface-200'}">${page}</button>`);
-        }
+        compactPages.forEach((token) => {
+            if (token === '...') {
+                pages.push('<button type="button" data-page="-1" disabled class="h-[30px] w-[36px] cursor-default rounded-[10px] border border-surface-200 bg-primary-50 text-base font-bold text-surface-300 disabled:opacity-50">...</button>');
+                return;
+            }
+            pages.push(`<button type="button" data-page="${token}" class="h-[30px] w-[30px] rounded-[10px] border border-surface-200 text-base font-bold ${token === state.page ? 'bg-primary-300 text-surface-50' : 'bg-primary-50 text-surface-300 hover:bg-surface-200'}">${token}</button>`);
+        });
         pages.push(`<button type="button" data-page="${state.page + 1}" ${state.page >= totalPages ? 'disabled' : ''} class="rounded-[10px] border border-surface-200 bg-primary-50 px-4 py-1.5 text-base font-bold text-surface-300 transition-colors hover:bg-surface-200 disabled:opacity-50">Next</button>`);
         pagination.innerHTML = pages.join('');
 
@@ -1057,12 +1140,43 @@ const initLstmOverview = () => {
         renderLogSteps();
     });
 
+    const navigateToRunTab = (target) => {
+        const preferredRunId = state.statusRunId || state.activeRunId || state.tableRows[0]?.id || null;
+        const targetRow = preferredRunId
+            ? state.tableRows.find((row) => Number(row.id) === Number(preferredRunId))
+            : (state.tableRows[0] || null);
+        const targetRunId = targetRow?.id || null;
+        const targetRunDate = extractRunDate(targetRow?.waktuEksekusi || '');
+
+        if (target === 'evaluation') {
+            state.evalRun = targetRunId;
+            if (targetRunDate) state.evalRunDate.single = targetRunDate;
+            renderEvalRunDate?.();
+            renderRunMenus();
+            renderEvaluation();
+            state.activeTab = 'evaluation';
+            renderTabs();
+            return;
+        }
+
+        state.logRun = targetRunId;
+        if (targetRunDate) state.logRunDate.single = targetRunDate;
+        renderLogRunDate?.();
+        renderRunMenus();
+        renderLogSteps();
+        state.activeTab = 'log';
+        renderTabs();
+    };
+
     tabButtons.forEach((button) => {
         button.addEventListener('click', () => {
             const tab = button.getAttribute('data-lstm-tab');
             if (!tab) return;
             state.activeTab = tab;
             renderTabs();
+            if (tab === 'overview') renderTable();
+            if (tab === 'evaluation') renderEvaluation();
+            if (tab === 'log') renderLogSteps();
         });
     });
 
@@ -1235,13 +1349,11 @@ const initLstmOverview = () => {
     });
 
     logButton.addEventListener('click', () => {
-        state.activeTab = 'log';
-        renderTabs();
+        navigateToRunTab('log');
     });
 
     resultButton.addEventListener('click', () => {
-        state.activeTab = 'evaluation';
-        renderTabs();
+        navigateToRunTab('evaluation');
     });
 
     deleteCancel.addEventListener('click', closeDeleteModal);
@@ -1293,6 +1405,8 @@ const initLstmOverview = () => {
             syncRuns({ syncStatus: false })
                 .then(() => {
                     renderTable();
+                    renderEvaluation();
+                    renderLogSteps();
                 })
                 .catch(() => {});
         });

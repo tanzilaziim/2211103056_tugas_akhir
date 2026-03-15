@@ -1,6 +1,6 @@
 @php
     $title = $pageTitle ?? 'Dashboard';
-    $dataset = $datasetName ?? '2025.zip';
+    $dataset = $datasetName ?? 'Belum ada dataset';
     $today = \Carbon\Carbon::now('Asia/Jakarta')->locale('id')->translatedFormat('d F Y');
 @endphp
 

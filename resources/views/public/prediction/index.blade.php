@@ -1,32 +1,8 @@
-﻿@extends('layouts.public')
+@extends('layouts.public')
 
 @section('title', 'Prediksi')
 
 @section('content')
-@php
-    $pm10Data24h = [
-        ['hour' => 0, 'value' => 30], ['hour' => 1, 'value' => 31], ['hour' => 2, 'value' => 32],
-        ['hour' => 3, 'value' => 30], ['hour' => 4, 'value' => 20], ['hour' => 5, 'value' => 15],
-        ['hour' => 6, 'value' => 48], ['hour' => 7, 'value' => 35], ['hour' => 8, 'value' => 30],
-        ['hour' => 9, 'value' => 25], ['hour' => 10, 'value' => 17], ['hour' => 11, 'value' => 16],
-        ['hour' => 12, 'value' => 25], ['hour' => 13, 'value' => 42], ['hour' => 14, 'value' => 16],
-        ['hour' => 15, 'value' => 44], ['hour' => 16, 'value' => 28], ['hour' => 17, 'value' => 18],
-        ['hour' => 18, 'value' => 39], ['hour' => 19, 'value' => 28], ['hour' => 20, 'value' => 37],
-        ['hour' => 21, 'value' => 46], ['hour' => 22, 'value' => 26], ['hour' => 23, 'value' => 18],
-    ];
-
-    $pm25Data24h = [
-        ['hour' => 0, 'value' => 2], ['hour' => 1, 'value' => 9], ['hour' => 2, 'value' => 8],
-        ['hour' => 3, 'value' => 14], ['hour' => 4, 'value' => 14], ['hour' => 5, 'value' => 11],
-        ['hour' => 6, 'value' => 5], ['hour' => 7, 'value' => 3], ['hour' => 8, 'value' => 14],
-        ['hour' => 9, 'value' => 14], ['hour' => 10, 'value' => 13], ['hour' => 11, 'value' => 13],
-        ['hour' => 12, 'value' => 3], ['hour' => 13, 'value' => 14], ['hour' => 14, 'value' => 2],
-        ['hour' => 15, 'value' => 15], ['hour' => 16, 'value' => 3], ['hour' => 17, 'value' => 3],
-        ['hour' => 18, 'value' => 8], ['hour' => 19, 'value' => 0], ['hour' => 20, 'value' => 3],
-        ['hour' => 21, 'value' => 14], ['hour' => 22, 'value' => 13], ['hour' => 23, 'value' => 3],
-    ];
-@endphp
-
 <div data-page="prediction" class="min-h-screen bg-slate-50 font-[Inter,sans-serif]">
     <div class="mx-auto w-full max-w-[1192px] px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         <div class="mb-7 text-center">
@@ -40,15 +16,15 @@
 
         <div class="mb-6 flex flex-wrap items-center gap-3">
             <div class="relative inline-flex items-center rounded-full border border-primary-300 bg-white p-[3px]">
-                <button data-period-btn="12 Jam" class="rounded-full px-4 py-1.5 text-sm font-normal text-slate-600 transition-all">12 Jam</button>
                 <button data-period-btn="24 Jam" class="rounded-full bg-primary-300 px-4 py-1.5 text-sm font-normal text-surface-50 transition-all">24 Jam</button>
                 <button data-period-btn="7 Hari" class="rounded-full px-4 py-1.5 text-sm font-normal text-slate-600 transition-all">7 Hari</button>
+                <button data-period-btn="30 Hari" class="rounded-full px-4 py-1.5 text-sm font-normal text-slate-600 transition-all">30 Hari</button>
             </div>
 
             <div class="relative">
                 <button type="button" data-date-toggle class="inline-flex items-center gap-2 rounded-full border border-primary-300 bg-white px-4 py-1.5 text-sm text-slate-600 transition-colors hover:bg-primary-50">
                     <i class="ph-bold ph-calendar-check text-2xl text-primary-300"></i>
-                    <span data-date-display>13 Februari 2025</span>
+                    <span data-date-display>-</span>
                 </button>
                 <div data-date-menu class="absolute left-0 top-full z-20 mt-2 hidden w-64 rounded-xl border border-surface-200 bg-surface-100 p-3 shadow-lg">
                     <div data-date-mode="single">
@@ -64,9 +40,9 @@
                         <div data-date-list class="max-h-48 space-y-1 overflow-y-auto"></div>
                     </div>
                     <div data-date-mode="range" class="hidden space-y-2">
-                        <p class="text-xs font-medium text-surface-300">Pilih rentang 7 hari</p>
+                        <p class="text-xs font-medium text-surface-300">Pilih tanggal awal (otomatis 7 hari)</p>
                         <input data-date-range-start type="date" class="w-full rounded-lg border border-surface-200 px-3 py-2 text-sm text-surface-300 outline-none focus:border-primary-300">
-                        <input data-date-range-end type="date" class="w-full rounded-lg border border-surface-200 px-3 py-2 text-sm text-surface-300 outline-none focus:border-primary-300">
+                        <p data-date-range-preview class="rounded-lg bg-primary-50 px-3 py-2 text-xs text-primary-300"></p>
                         <button type="button" data-date-range-apply class="w-full rounded-lg bg-primary-300 px-3 py-2 text-sm font-medium text-surface-50">Terapkan</button>
                     </div>
                     <div data-date-mode="month" class="hidden space-y-2">
@@ -79,12 +55,12 @@
         </div>
 
         <div class="mb-5 flex flex-col gap-4 sm:flex-row">
-            <div data-pm10-card class="min-w-0 flex-1 rounded-[15px] border border-slate-200 p-6 shadow-sm" style="background-color: rgba(37, 99, 235, 0.25);">
+            <div data-pm10-card class="min-w-0 flex-1 rounded-[15px] border border-slate-200 p-6 shadow-sm" style="background: linear-gradient(180deg, rgba(37, 99, 235, 0.25) 0%, rgba(255, 255, 255, 0.25) 100%);">
                 <div class="mb-4 flex items-start justify-between">
                     <h2 class="text-2xl font-bold text-slate-900">PM10</h2>
                     <div class="flex items-center gap-2">
                         <span data-pm10-icon class="inline-flex items-center justify-center"></span>
-                        <span data-pm10-status class="text-lg text-slate-600">Sedang</span>
+                        <span data-pm10-status class="text-lg text-slate-600">-</span>
                     </div>
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -103,12 +79,12 @@
                 </div>
             </div>
 
-            <div data-pm25-card class="min-w-0 flex-1 rounded-[15px] border border-slate-200 p-6 shadow-sm" style="background-color: rgba(22, 163, 74, 0.25);">
+            <div data-pm25-card class="min-w-0 flex-1 rounded-[15px] border border-slate-200 p-6 shadow-sm" style="background: linear-gradient(180deg, rgba(22, 163, 74, 0.25) 0%, rgba(255, 255, 255, 0.25) 100%);">
                 <div class="mb-4 flex items-start justify-between">
                     <h2 class="text-2xl font-bold text-slate-900">PM2.5</h2>
                     <div class="flex items-center gap-2">
                         <span data-pm25-icon class="inline-flex items-center justify-center"></span>
-                        <span data-pm25-status class="text-lg text-slate-600">Baik</span>
+                        <span data-pm25-status class="text-lg text-slate-600">-</span>
                     </div>
                 </div>
                 <div class="flex flex-wrap gap-2">
@@ -131,11 +107,11 @@
         <div class="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_auto]">
             <div class="min-w-0">
                 <div class="mb-4 rounded-[15px] border border-slate-200 bg-white p-6 shadow-sm">
-                    <h3 data-chart-title="pm10" class="mb-4 text-xl font-bold text-slate-900">PM10 - Prediksi 24 Jam Terakhir</h3>
+                    <h3 data-chart-title="pm10" class="mb-4 text-xl font-bold text-slate-900">PM10 - Grafik Prediksi (24 Jam)</h3>
                     <div class="h-[280px] w-full"><canvas id="pm10-chart"></canvas></div>
                 </div>
                 <div class="rounded-[15px] border border-slate-200 bg-white p-6 shadow-sm">
-                    <h3 data-chart-title="pm25" class="mb-4 text-xl font-bold text-slate-900">PM2.5 - Prediksi 24 Jam Terakhir</h3>
+                    <h3 data-chart-title="pm25" class="mb-4 text-xl font-bold text-slate-900">PM2.5 - Grafik Prediksi (24 Jam)</h3>
                     <div class="h-[280px] w-full"><canvas id="pm25-chart"></canvas></div>
                 </div>
             </div>
@@ -153,7 +129,7 @@
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b-2 border-t-2 border-primary-300">
-                                    <th class="py-2 text-center font-normal text-slate-600">Jam</th>
+                                    <th data-detail-time-head class="py-2 text-center font-normal text-slate-600">Jam</th>
                                     <th class="py-2 text-center font-normal text-slate-600">Konsentrasi</th>
                                     <th class="py-2 text-center font-normal text-slate-600">Indikator Kesehatan</th>
                                 </tr>
@@ -165,8 +141,5 @@
             </div>
         </div>
     </div>
-
-    <script id="pm10-data-24h" type="application/json">@json($pm10Data24h)</script>
-    <script id="pm25-data-24h" type="application/json">@json($pm25Data24h)</script>
 </div>
 @endsection

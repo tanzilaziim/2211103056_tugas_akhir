@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Pengaturan Akun Admin')
+@section('title', 'Pengaturan Akun')
 @section('admin_page_title', 'Pengaturan Akun')
 
 @section('content')

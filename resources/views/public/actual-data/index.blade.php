@@ -95,11 +95,11 @@
 
         <div class="mb-6 flex flex-col gap-6">
             <div class="rounded-[15px] border border-slate-200 bg-white p-6 pb-4 shadow-sm">
-                <h2 data-chart-title="pm10" class="mb-4 text-2xl font-bold text-slate-900">PM10 - Data Aktual 24 Jam</h2>
+                <h2 data-chart-title="pm10" class="mb-4 text-2xl font-bold text-slate-900">PM10 - Grafik Data Aktual (24 Jam)</h2>
                 <div class="h-72 w-full sm:h-80"><canvas id="actual-pm10-chart"></canvas></div>
             </div>
             <div class="rounded-[15px] border border-slate-200 bg-white p-6 pb-4 shadow-sm">
-                <h2 data-chart-title="pm25" class="mb-4 text-2xl font-bold text-slate-900">PM2.5 - Data Aktual 24 Jam</h2>
+                <h2 data-chart-title="pm25" class="mb-4 text-2xl font-bold text-slate-900">PM2.5 - Grafik Data Aktual (24 Jam)</h2>
                 <div class="h-72 w-full sm:h-80"><canvas id="actual-pm25-chart"></canvas></div>
             </div>
         </div>

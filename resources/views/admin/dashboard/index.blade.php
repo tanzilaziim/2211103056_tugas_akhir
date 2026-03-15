@@ -20,6 +20,11 @@ SVG;
     $duplicateCount = (int) ($dashboard['duplicate_count'] ?? 0);
     $pm10 = $dashboard['pm10'] ?? null;
     $pm25 = $dashboard['pm25'] ?? null;
+    $accuracy = $dashboard['accuracy'] ?? ['mae' => '-', 'rmse' => '-', 'r2' => '-'];
+    $predictionPm10 = $dashboard['prediction_pm10'] ?? null;
+    $predictionPm25 = $dashboard['prediction_pm25'] ?? null;
+    $processSteps = $dashboard['process_steps'] ?? [];
+    $activeRun = $dashboard['active_run'] ?? null;
 
     $gradientFromHex = static fn (string $hex): string => sprintf(
         'background: linear-gradient(180deg, rgba(%d, %d, %d, 0.25) 0%%, rgba(255, 255, 255, 0.25) 100%%);',
@@ -27,6 +32,13 @@ SVG;
         hexdec(substr($hex, 3, 2)),
         hexdec(substr($hex, 5, 2)),
     );
+
+    $stepMeta = static fn (string $status): array => match ($status) {
+        'success' => ['label' => 'Done', 'text_class' => 'text-ispu-baik', 'icon' => 'ph-fill ph-check-circle'],
+        'running' => ['label' => 'Running', 'text_class' => 'text-warning-300', 'icon' => 'ph ph-circle-notch animate-spin'],
+        'failed' => ['label' => 'Failed', 'text_class' => 'text-ispu-sangat-tidak-sehat', 'icon' => 'ph-fill ph-x-circle'],
+        default => ['label' => 'Pending', 'text_class' => 'text-surface-300', 'icon' => 'ph ph-clock'],
+    };
 @endphp
 
 <div class="mb-6">
@@ -59,9 +71,9 @@ SVG;
     <div class="rounded-[15px] border border-surface-200 bg-surface-100 px-4 py-4 shadow-sm">
         <h3 class="mb-2 text-xl font-bold text-surface-400">Akurasi Prediksi</h3>
         <div class="mt-1 space-y-0.5 text-base text-surface-300">
-            <div class="flex gap-2"><span class="w-12">MAE</span><span>:</span><span>0.7727</span></div>
-            <div class="flex gap-2"><span class="w-12">RMSE</span><span>:</span><span>0.1231</span></div>
-            <div class="flex gap-2"><span class="w-12">R2</span><span>:</span><span>0.1231</span></div>
+            <div class="flex gap-2"><span class="w-12">MAE</span><span>:</span><span>{{ $accuracy['mae'] }}</span></div>
+            <div class="flex gap-2"><span class="w-12">RMSE</span><span>:</span><span>{{ $accuracy['rmse'] }}</span></div>
+            <div class="flex gap-2"><span class="w-12">R2</span><span>:</span><span>{{ $accuracy['r2'] }}</span></div>
         </div>
     </div>
 </div>
@@ -108,35 +120,40 @@ SVG;
 <div class="mb-8 rounded-[15px] border border-surface-200 bg-surface-100 px-6 py-5">
     <div class="mb-6 flex items-center justify-between gap-3">
         <h2 class="text-xl font-bold text-surface-400">Proses Prediksi</h2>
-        <a href="#" class="inline-flex items-center gap-1.5 text-base font-bold text-primary-300 transition-colors hover:text-primary-400">
+        <a href="{{ route('admin.lstm') }}" class="inline-flex items-center gap-1.5 text-base font-bold text-primary-300 transition-colors hover:text-primary-400">
             Lihat selengkapnya
             <i class="ph ph-arrow-right text-lg"></i>
         </a>
     </div>
 
     <div class="flex items-start gap-0 overflow-x-auto pb-1">
-        @foreach (['Preprocessing', 'Scaling', 'Windowing', 'Training', 'Generate', 'Evaluation'] as $idx => $step)
+        @forelse ($processSteps as $idx => $step)
+            @php
+                $meta = $stepMeta((string) ($step['status'] ?? 'pending'));
+            @endphp
             <div class="flex items-start">
                 <div class="flex min-w-fit flex-col gap-1.5">
-                    <span class="whitespace-nowrap text-base font-bold text-surface-300">{{ $step }}</span>
+                    <span class="whitespace-nowrap text-base font-bold text-surface-300">{{ $step['label'] ?? 'Tahap' }}</span>
                     <div class="flex items-center gap-1.5">
-                        <span class="text-base text-ispu-baik">Done</span>
-                        <i class="ph-fill ph-check-circle text-xl text-ispu-baik"></i>
+                        <span class="text-base {{ $meta['text_class'] }}">{{ $meta['label'] }}</span>
+                        <i class="{{ $meta['icon'] }} text-xl {{ $meta['text_class'] }}"></i>
                     </div>
                 </div>
-                @if ($idx < 5)
+                @if ($idx < count($processSteps) - 1)
                     <div class="mx-3 mt-1.5 flex shrink-0 items-center text-primary-300">
                         <i class="ph ph-arrow-right text-2xl"></i>
                     </div>
                 @endif
             </div>
-        @endforeach
+        @empty
+            <div class="text-sm text-surface-300">Belum ada data proses prediksi.</div>
+        @endforelse
 
         <div class="ml-6 flex items-center gap-4">
             <div class="h-12 w-0.5 shrink-0 rounded-full bg-primary-300"></div>
             <div class="flex items-center gap-2">
                 <span class="text-base font-bold text-surface-300">Status</span>
-                <i class="ph-fill ph-check-circle text-xl text-ispu-baik"></i>
+                <i class="{{ ($activeRun && ($activeRun['status'] ?? '') === 'success') ? 'ph-fill ph-check-circle text-ispu-baik' : 'ph ph-clock text-surface-300' }} text-xl"></i>
             </div>
         </div>
     </div>
@@ -145,36 +162,36 @@ SVG;
 <div>
     <h2 class="mb-4 text-xl font-bold text-surface-400">Ringkasan Prediksi</h2>
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div class="rounded-[15px] border border-surface-200 shadow-sm" style="background: linear-gradient(180deg, rgba(37, 99, 235, 0.25) 0%, rgba(255, 255, 255, 0.25) 100%);">
+        <div class="rounded-[15px] border border-surface-200 shadow-sm" style="{{ $gradientFromHex($predictionPm10['category']['hex'] ?? '#2563EB') }}">
             <div class="px-8 py-5">
                 <div class="mb-4 flex items-center justify-between">
                     <span class="text-2xl font-bold text-surface-400">PM10</span>
                     <div class="flex items-center gap-2">
-                        {!! $sedangIconSvg !!}
-                        <span class="text-lg text-surface-300">Sedang</span>
+                        {!! ($predictionPm10['category']['key'] ?? '') === 'baik' ? $baikIconSvg : $sedangIconSvg !!}
+                        <span class="text-lg text-surface-300">{{ $predictionPm10['category']['label'] ?? '-' }}</span>
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
-                    <div class="flex items-center gap-1 rounded-[10px] border border-surface-200 bg-transparent px-2 py-1.5"><span class="text-sm text-surface-300">Rata-rata:</span><span class="text-sm text-ispu-sedang">47,5</span></div>
-                    <div class="flex items-center gap-1 rounded-[10px] border border-surface-200 bg-transparent px-2 py-1.5"><span class="text-sm text-surface-300">Tertinggi:</span><span class="text-sm text-ispu-sedang">61</span></div>
-                    <div class="flex items-center gap-1 rounded-[10px] border border-surface-200 bg-transparent px-2 py-1.5"><span class="text-sm text-surface-300">Terendah:</span><span class="text-sm text-ispu-sedang">41</span></div>
+                    <div class="flex items-center gap-1 rounded-[10px] border border-surface-200 bg-transparent px-2 py-1.5"><span class="text-sm text-surface-300">Rata-rata:</span><span class="text-sm {{ $predictionPm10['category']['text_class'] ?? 'text-surface-300' }}">{{ $predictionPm10['average'] ?? '0,0' }}</span></div>
+                    <div class="flex items-center gap-1 rounded-[10px] border border-surface-200 bg-transparent px-2 py-1.5"><span class="text-sm text-surface-300">Tertinggi:</span><span class="text-sm {{ $predictionPm10['category']['text_class'] ?? 'text-surface-300' }}">{{ $predictionPm10['highest'] ?? '0' }}</span></div>
+                    <div class="flex items-center gap-1 rounded-[10px] border border-surface-200 bg-transparent px-2 py-1.5"><span class="text-sm text-surface-300">Terendah:</span><span class="text-sm {{ $predictionPm10['category']['text_class'] ?? 'text-surface-300' }}">{{ $predictionPm10['lowest'] ?? '0' }}</span></div>
                 </div>
             </div>
         </div>
 
-        <div class="rounded-[15px] border border-surface-200 shadow-sm" style="background: linear-gradient(180deg, rgba(22, 163, 74, 0.25) 0%, rgba(255, 255, 255, 0.25) 100%);">
+        <div class="rounded-[15px] border border-surface-200 shadow-sm" style="{{ $gradientFromHex($predictionPm25['category']['hex'] ?? '#16A34A') }}">
             <div class="px-8 py-5">
                 <div class="mb-4 flex items-center justify-between">
                     <span class="text-2xl font-bold text-surface-400">PM2.5</span>
                     <div class="flex items-center gap-2">
-                        {!! $baikIconSvg !!}
-                        <span class="text-lg text-surface-300">Baik</span>
+                        {!! ($predictionPm25['category']['key'] ?? '') === 'baik' ? $baikIconSvg : $sedangIconSvg !!}
+                        <span class="text-lg text-surface-300">{{ $predictionPm25['category']['label'] ?? '-' }}</span>
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
-                    <div class="flex items-center gap-1 rounded-[10px] border border-surface-200 bg-transparent px-2 py-1.5"><span class="text-sm text-surface-300">Rata-rata:</span><span class="text-sm text-ispu-baik">47,5</span></div>
-                    <div class="flex items-center gap-1 rounded-[10px] border border-surface-200 bg-transparent px-2 py-1.5"><span class="text-sm text-surface-300">Tertinggi:</span><span class="text-sm text-ispu-baik">61</span></div>
-                    <div class="flex items-center gap-1 rounded-[10px] border border-surface-200 bg-transparent px-2 py-1.5"><span class="text-sm text-surface-300">Terendah:</span><span class="text-sm text-ispu-baik">41</span></div>
+                    <div class="flex items-center gap-1 rounded-[10px] border border-surface-200 bg-transparent px-2 py-1.5"><span class="text-sm text-surface-300">Rata-rata:</span><span class="text-sm {{ $predictionPm25['category']['text_class'] ?? 'text-surface-300' }}">{{ $predictionPm25['average'] ?? '0,0' }}</span></div>
+                    <div class="flex items-center gap-1 rounded-[10px] border border-surface-200 bg-transparent px-2 py-1.5"><span class="text-sm text-surface-300">Tertinggi:</span><span class="text-sm {{ $predictionPm25['category']['text_class'] ?? 'text-surface-300' }}">{{ $predictionPm25['highest'] ?? '0' }}</span></div>
+                    <div class="flex items-center gap-1 rounded-[10px] border border-surface-200 bg-transparent px-2 py-1.5"><span class="text-sm text-surface-300">Terendah:</span><span class="text-sm {{ $predictionPm25['category']['text_class'] ?? 'text-surface-300' }}">{{ $predictionPm25['lowest'] ?? '0' }}</span></div>
                 </div>
             </div>
         </div>
