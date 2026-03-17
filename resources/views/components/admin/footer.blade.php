@@ -7,14 +7,14 @@
         <img
             src="{{ Vite::asset('resources/assets/images/logo_dlh.png') }}"
             alt="Logo Dinas Lingkungan Hidup"
-            class="h-6 w-auto object-contain"
+            class="h-8 w-auto object-contain"
         >
         <span class="hidden font-bold sm:inline">-</span>
         <span class="font-medium">In Collaboration With</span>
         <img
             src="{{ Vite::asset('resources/assets/images/logo_tup_horizontal.png') }}"
             alt="Telkom University Purwokerto"
-            class="h-9 w-auto object-contain"
+            class="h-10 w-auto object-contain"
         >
     </div>
 </footer>
