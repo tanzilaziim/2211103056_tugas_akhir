@@ -1,4 +1,4 @@
-const ROLE_OPTIONS = ['Super Admin', 'Admin', 'Operator', 'Viewer'];
+const ROLE_OPTIONS = ['Super Admin', 'Admin'];
 
 const csrfToken = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 

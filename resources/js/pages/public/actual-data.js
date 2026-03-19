@@ -200,6 +200,7 @@ const initActualDataPage = () => {
     const dateMonthInput = document.querySelector('[data-date-month]');
     const dateMonthApply = document.querySelector('[data-date-month-apply]');
     const dateDisplay = document.querySelector('[data-date-display]');
+    const accessRange = document.querySelector('[data-access-range]');
     let selectedDate = new Date().toISOString().slice(0, 10);
     let selectedRangeStart = selectedDate;
     let selectedRangeEnd = addDays(selectedDate, 6);
@@ -404,10 +405,12 @@ const initActualDataPage = () => {
             selectedMonth = selectedDate.slice(0, 7);
             rangeData = normalizeRanges(payload?.ranges, fallbackRanges);
             renderDatePicker();
+            renderAccessibleRange();
             renderSummary();
             renderCharts();
         } catch {
             rangeData = fallbackRanges;
+            renderAccessibleRange();
         }
     };
 
@@ -415,6 +418,32 @@ const initActualDataPage = () => {
         if (activeRange === '7 Hari') return 'range';
         if (activeRange === '30 Hari') return 'month';
         return 'single';
+    };
+
+    const renderAccessibleRange = () => {
+        if (!(accessRange instanceof HTMLElement)) return;
+
+        if (activeRange === '30 Hari') {
+            const months = availableMonths.length
+                ? [...availableMonths].sort()
+                : [...new Set(availableDates.map((date) => date.slice(0, 7)))].sort();
+
+            if (!months.length) {
+                accessRange.textContent = 'Rentang data aktual tersedia: -';
+                return;
+            }
+
+            accessRange.textContent = `Rentang data aktual tersedia: ${formatMonthId(months[0])} - ${formatMonthId(months[months.length - 1])}`;
+            return;
+        }
+
+        if (!availableDates.length) {
+            accessRange.textContent = 'Rentang data aktual tersedia: -';
+            return;
+        }
+
+        const sortedDates = [...availableDates].sort();
+        accessRange.textContent = `Rentang data aktual tersedia: ${formatShortDate(sortedDates[0])} - ${formatShortDate(sortedDates[sortedDates.length - 1])}`;
     };
 
     const renderDatePicker = () => {
@@ -540,6 +569,7 @@ const initActualDataPage = () => {
             }
             setActiveRangeButton();
             renderDatePicker();
+            renderAccessibleRange();
             renderSummary();
             renderCharts();
         });
@@ -547,6 +577,7 @@ const initActualDataPage = () => {
 
     initDatePicker();
     setActiveRangeButton();
+    renderAccessibleRange();
     renderSummary();
     renderCharts();
     fetchRanges(selectedDate);

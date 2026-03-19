@@ -121,7 +121,7 @@ SVG;
             </p>
         </section>
 
-        <section class="mb-10 sm:mb-14">
+        <section id="kategori-ispu" class="mb-10 sm:mb-14">
             <h2 class="mb-5 text-xl font-bold text-surface-400 sm:text-2xl">Apa itu Pencemaran Udara?</h2>
             <div class="flex flex-col gap-5 lg:flex-row">
                 <div class="flex-[3] rounded-[15px] border border-primary-300 bg-white p-5">
@@ -215,7 +215,7 @@ SVG;
             </div>
         </section>
 
-        <section class="space-y-8 sm:space-y-10">
+        <section id="tindakan-kualitas-udara" class="space-y-8 sm:space-y-10">
             <div>
                 <h2 class="mb-4 text-2xl font-bold text-surface-400">Apa yang Harus Dilakukan?</h2>
 
@@ -298,30 +298,27 @@ SVG;
         const items = Array.from(document.querySelectorAll('[data-faq-item]'));
         if (!items.length) return;
 
-        const setOpen = (targetIndex) => {
-            items.forEach((item, index) => {
-                const panel = item.querySelector('[data-faq-panel]');
-                const up = item.querySelector('[data-caret-up]');
-                const down = item.querySelector('[data-caret-down]');
-                const button = item.querySelector('[data-faq-toggle]');
-                const isOpen = index === targetIndex;
+        const setOpen = (item, isOpen) => {
+            const panel = item.querySelector('[data-faq-panel]');
+            const up = item.querySelector('[data-caret-up]');
+            const down = item.querySelector('[data-caret-down]');
+            const button = item.querySelector('[data-faq-toggle]');
 
-                if (panel) panel.classList.toggle('hidden', !isOpen);
-                if (up) up.classList.toggle('hidden', !isOpen);
-                if (down) down.classList.toggle('hidden', isOpen);
-                if (button) button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-            });
+            if (panel) panel.classList.toggle('hidden', !isOpen);
+            if (up) up.classList.toggle('hidden', !isOpen);
+            if (down) down.classList.toggle('hidden', isOpen);
+            if (button) button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         };
 
-        items.forEach((item, index) => {
+        items.forEach((item) => {
             const button = item.querySelector('[data-faq-toggle]');
             if (!button) return;
+
             button.addEventListener('click', () => {
                 const isExpanded = button.getAttribute('aria-expanded') === 'true';
-                setOpen(isExpanded ? -1 : index);
+                setOpen(item, !isExpanded);
             });
         });
     })();
 </script>
 @endsection
-

@@ -1,47 +1,19 @@
-﻿@extends('layouts.public')
+@extends('layouts.public')
 
 @section('title', 'Beranda')
 
 @section('content')
 @php
-    $pm10Data = [
-        ['hour' => 0, 'value' => 30], ['hour' => 1, 'value' => 32], ['hour' => 2, 'value' => 20], ['hour' => 3, 'value' => 32],
-        ['hour' => 4, 'value' => 38], ['hour' => 5, 'value' => 48], ['hour' => 6, 'value' => 34], ['hour' => 7, 'value' => 15],
-        ['hour' => 8, 'value' => 28], ['hour' => 9, 'value' => 37], ['hour' => 10, 'value' => 20], ['hour' => 11, 'value' => 19],
-        ['hour' => 12, 'value' => 30], ['hour' => 13, 'value' => 44], ['hour' => 14, 'value' => 29], ['hour' => 15, 'value' => 17],
-        ['hour' => 16, 'value' => 44], ['hour' => 17, 'value' => 31], ['hour' => 18, 'value' => 45], ['hour' => 19, 'value' => 20],
-        ['hour' => 20, 'value' => 46], ['hour' => 21, 'value' => 20], ['hour' => 22, 'value' => 28], ['hour' => 23, 'value' => 18],
+    $payload = $predictionPayload ?? [
+        'window_title' => 'Ringkasan Prediksi 6 Jam ke Depan',
+        'window_date_label' => '-',
+        'labels' => [],
+        'pm10' => ['series' => [], 'summary' => ['average' => '0,0', 'highest' => 0, 'lowest' => 0, 'category' => ['key' => 'sedang', 'label' => '-', 'hex' => '#2563EB', 'text_class' => 'text-surface-300']]],
+        'pm25' => ['series' => [], 'summary' => ['average' => '0,0', 'highest' => 0, 'lowest' => 0, 'category' => ['key' => 'sedang', 'label' => '-', 'hex' => '#2563EB', 'text_class' => 'text-surface-300']]],
     ];
 
-    $pm25Data = [
-        ['hour' => 0, 'value' => 9], ['hour' => 1, 'value' => 12], ['hour' => 2, 'value' => 14], ['hour' => 3, 'value' => 14],
-        ['hour' => 4, 'value' => 9], ['hour' => 5, 'value' => 8], ['hour' => 6, 'value' => 5], ['hour' => 7, 'value' => 2],
-        ['hour' => 8, 'value' => 2], ['hour' => 9, 'value' => 7], ['hour' => 10, 'value' => 13], ['hour' => 11, 'value' => 13],
-        ['hour' => 12, 'value' => 2], ['hour' => 13, 'value' => 2], ['hour' => 14, 'value' => 1], ['hour' => 15, 'value' => 15],
-        ['hour' => 16, 'value' => 15], ['hour' => 17, 'value' => 10], ['hour' => 18, 'value' => 1], ['hour' => 19, 'value' => 2],
-        ['hour' => 20, 'value' => 14], ['hour' => 21, 'value' => 3], ['hour' => 22, 'value' => 12], ['hour' => 23, 'value' => 3],
-    ];
-
-    $buildLinePoints = function (array $data, int $w = 760, int $h = 280, int $padX = 30, int $padY = 20): string {
-        $minY = 0;
-        $maxY = max(array_column($data, 'value'));
-        $maxY = $maxY > 0 ? $maxY : 1;
-        $innerW = $w - ($padX * 2);
-        $innerH = $h - ($padY * 2);
-
-        $points = [];
-        foreach ($data as $index => $item) {
-            $x = $padX + ($innerW * ($index / (count($data) - 1)));
-            $yRatio = ($item['value'] - $minY) / ($maxY - $minY);
-            $y = $h - $padY - ($innerH * $yRatio);
-            $points[] = round($x, 2) . ',' . round($y, 2);
-        }
-
-        return implode(' ', $points);
-    };
-
-    $pm10Points = $buildLinePoints($pm10Data);
-    $pm25Points = $buildLinePoints($pm25Data);
+    $pm10Summary = $payload['pm10']['summary'] ?? [];
+    $pm25Summary = $payload['pm25']['summary'] ?? [];
 @endphp
 
 @php
@@ -66,7 +38,7 @@ SVG;
 SVG;
 @endphp
 
-<div class="min-h-screen bg-surface-50">
+<div data-page="public-home" class="min-h-screen bg-surface-50">
     <div class="mx-auto flex w-full max-w-[1192px] flex-col gap-6 px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
         <div class="text-center">
             <h1 class="text-2xl font-bold leading-tight text-surface-400 sm:text-3xl lg:text-[32px]">
@@ -119,41 +91,42 @@ SVG;
             <div class="absolute bottom-0 left-0 top-0 w-[13px] rounded-l-[15px] bg-primary-300"></div>
 
             <div class="px-5 py-5 pl-[30px]">
-                <div class="mb-5 flex flex-wrap items-center justify-between gap-2">
-                    <h2 class="text-xl font-bold text-surface-400 sm:text-2xl">Ringkasan Prediksi 6 Jam ke Depan</h2>
+                <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <h2 class="text-xl font-bold text-surface-400 sm:text-2xl">{{ $payload['window_title'] }}</h2>
                     <a href="{{ route('public.prediction') }}" class="flex items-center gap-1 text-base font-bold text-primary-300 hover:underline">
                         <span>Lihat prediksi lengkap</span>
                         <i class="ph ph-arrow-right"></i>
                     </a>
                 </div>
+                <p class="mb-3 text-sm font-medium text-primary-300">{{ $payload['window_date_label'] ?? '-' }}</p>
 
                 <div class="flex flex-col gap-6 sm:flex-row">
-                    <div class="flex-1">
+                    <div class="flex-1 px-1 py-1">
                         <div class="mb-3 flex items-center gap-2">
                             <span class="text-lg font-bold text-surface-400 sm:text-xl">PM10</span>
-                            {!! $sedangIconSvg !!}
-                            <span class="text-base font-normal text-surface-300 sm:text-lg">Sedang</span>
+                            {!! (($pm10Summary['category']['key'] ?? '') === 'baik') ? $baikIconSvg : $sedangIconSvg !!}
+                            <span class="text-base font-normal text-surface-300 sm:text-lg">{{ $pm10Summary['category']['label'] ?? '-' }}</span>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <div class="rounded-[10px] border border-surface-200 px-2 py-2 text-sm sm:text-base"><span class="text-surface-300">Rata-rata:</span> <span class="ml-1 text-ispu-sedang">47,5</span></div>
-                            <div class="rounded-[10px] border border-surface-200 px-2 py-2 text-sm sm:text-base"><span class="text-surface-300">Tertinggi:</span> <span class="ml-1 text-ispu-sedang">61</span></div>
-                            <div class="rounded-[10px] border border-surface-200 px-2 py-2 text-sm sm:text-base"><span class="text-surface-300">Waktu:</span> <span class="ml-1 text-surface-300">16:00</span></div>
+                            <div class="rounded-[10px] border border-surface-200 px-2 py-2 text-sm sm:text-base"><span class="text-surface-300">Rata-rata:</span> <span class="ml-1 {{ $pm10Summary['category']['text_class'] ?? 'text-surface-300' }}">{{ $pm10Summary['average'] ?? '0,0' }}</span></div>
+                            <div class="rounded-[10px] border border-surface-200 px-2 py-2 text-sm sm:text-base"><span class="text-surface-300">Tertinggi:</span> <span class="ml-1 {{ $pm10Summary['category']['text_class'] ?? 'text-surface-300' }}">{{ $pm10Summary['highest'] ?? 0 }}</span></div>
+                            <div class="rounded-[10px] border border-surface-200 px-2 py-2 text-sm sm:text-base"><span class="text-surface-300">Terendah:</span> <span class="ml-1 {{ $pm10Summary['category']['text_class'] ?? 'text-surface-300' }}">{{ $pm10Summary['lowest'] ?? 0 }}</span></div>
                         </div>
                     </div>
 
                     <div class="hidden w-[3px] self-stretch rounded-[10px] bg-primary-300 sm:block"></div>
                     <div class="block h-px bg-surface-200 sm:hidden"></div>
 
-                    <div class="flex-1">
+                    <div class="flex-1 px-1 py-1">
                         <div class="mb-3 flex items-center gap-2">
                             <span class="text-lg font-bold text-surface-400 sm:text-xl">PM2.5</span>
-                            {!! $baikIconSvg !!}
-                            <span class="text-base font-normal text-surface-300 sm:text-lg">Baik</span>
+                            {!! (($pm25Summary['category']['key'] ?? '') === 'baik') ? $baikIconSvg : $sedangIconSvg !!}
+                            <span class="text-base font-normal text-surface-300 sm:text-lg">{{ $pm25Summary['category']['label'] ?? '-' }}</span>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <div class="rounded-[10px] border border-surface-200 px-2 py-2 text-sm sm:text-base"><span class="text-surface-300">Rata-rata:</span> <span class="ml-1 text-ispu-baik">47,5</span></div>
-                            <div class="rounded-[10px] border border-surface-200 px-2 py-2 text-sm sm:text-base"><span class="text-surface-300">Tertinggi:</span> <span class="ml-1 text-ispu-baik">61</span></div>
-                            <div class="rounded-[10px] border border-surface-200 px-2 py-2 text-sm sm:text-base"><span class="text-surface-300">Waktu:</span> <span class="ml-1 text-surface-300">16:00</span></div>
+                            <div class="rounded-[10px] border border-surface-200 px-2 py-2 text-sm sm:text-base"><span class="text-surface-300">Rata-rata:</span> <span class="ml-1 {{ $pm25Summary['category']['text_class'] ?? 'text-surface-300' }}">{{ $pm25Summary['average'] ?? '0,0' }}</span></div>
+                            <div class="rounded-[10px] border border-surface-200 px-2 py-2 text-sm sm:text-base"><span class="text-surface-300">Tertinggi:</span> <span class="ml-1 {{ $pm25Summary['category']['text_class'] ?? 'text-surface-300' }}">{{ $pm25Summary['highest'] ?? 0 }}</span></div>
+                            <div class="rounded-[10px] border border-surface-200 px-2 py-2 text-sm sm:text-base"><span class="text-surface-300">Terendah:</span> <span class="ml-1 {{ $pm25Summary['category']['text_class'] ?? 'text-surface-300' }}">{{ $pm25Summary['lowest'] ?? 0 }}</span></div>
                         </div>
                     </div>
                 </div>
@@ -162,51 +135,13 @@ SVG;
 
         <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <div class="flex flex-col gap-4 rounded-[15px] border border-surface-200 bg-white p-5 shadow-sm sm:p-7">
-                <h3 class="text-lg font-bold text-surface-400 sm:text-2xl">PM10 - Grafik Prediksi 6 Jam ke Depan</h3>
-                <div class="w-full overflow-x-auto">
-                    <svg viewBox="0 0 760 280" class="min-w-[680px]">
-                        @for ($i = 0; $i <= 5; $i++)
-                            <line x1="30" y1="{{ 20 + ($i * 48) }}" x2="730" y2="{{ 20 + ($i * 48) }}" stroke="#E2E8F0" stroke-dasharray="3 3" />
-                        @endfor
-                        <polyline fill="none" stroke="#2563EB" stroke-width="2.5" points="{{ $pm10Points }}" />
-                        @foreach ($pm10Data as $idx => $point)
-                            @php
-                                $x = 30 + ((700 * $idx) / 23);
-                                $y = 260 - (240 * ($point['value'] / 48));
-                            @endphp
-                            <circle cx="{{ round($x, 2) }}" cy="{{ round($y, 2) }}" r="4" fill="#2563EB">
-                                <title>Jam {{ $point['hour'] }}:00 - {{ $point['value'] }} µg/m³</title>
-                            </circle>
-                            @if ($point['hour'] % 2 === 0)
-                                <text x="{{ round($x, 2) }}" y="275" text-anchor="middle" fill="#475569" font-size="11">{{ $point['hour'] }}</text>
-                            @endif
-                        @endforeach
-                    </svg>
-                </div>
+                <h3 class="text-lg font-bold text-surface-400 sm:text-2xl">PM10 - Grafik {{ $payload['window_title'] }}</h3>
+                <div class="h-[280px] w-full"><canvas id="public-home-pm10-chart"></canvas></div>
             </div>
 
             <div class="flex flex-col gap-4 rounded-[15px] border border-surface-200 bg-white p-5 shadow-sm sm:p-7">
-                <h3 class="text-lg font-bold text-surface-400 sm:text-2xl">PM2.5 - Grafik Prediksi 6 Jam ke Depan</h3>
-                <div class="w-full overflow-x-auto">
-                    <svg viewBox="0 0 760 280" class="min-w-[680px]">
-                        @for ($i = 0; $i <= 5; $i++)
-                            <line x1="30" y1="{{ 20 + ($i * 48) }}" x2="730" y2="{{ 20 + ($i * 48) }}" stroke="#E2E8F0" stroke-dasharray="3 3" />
-                        @endfor
-                        <polyline fill="none" stroke="#16A34A" stroke-width="2.5" points="{{ $pm25Points }}" />
-                        @foreach ($pm25Data as $idx => $point)
-                            @php
-                                $x = 30 + ((700 * $idx) / 23);
-                                $y = 260 - (240 * ($point['value'] / 15));
-                            @endphp
-                            <circle cx="{{ round($x, 2) }}" cy="{{ round($y, 2) }}" r="4" fill="#16A34A">
-                                <title>Jam {{ $point['hour'] }}:00 - {{ $point['value'] }} µg/m³</title>
-                            </circle>
-                            @if ($point['hour'] % 2 === 0)
-                                <text x="{{ round($x, 2) }}" y="275" text-anchor="middle" fill="#475569" font-size="11">{{ $point['hour'] }}</text>
-                            @endif
-                        @endforeach
-                    </svg>
-                </div>
+                <h3 class="text-lg font-bold text-surface-400 sm:text-2xl">PM2.5 - Grafik {{ $payload['window_title'] }}</h3>
+                <div class="h-[280px] w-full"><canvas id="public-home-pm25-chart"></canvas></div>
             </div>
         </div>
 
@@ -217,5 +152,11 @@ SVG;
             </p>
         </div>
     </div>
+
+    <script id="home-prediction-labels" type="application/json">@json($payload['labels'] ?? [])</script>
+    <script id="home-pm10-series" type="application/json">@json($payload['pm10']['series'] ?? [])</script>
+    <script id="home-pm25-series" type="application/json">@json($payload['pm25']['series'] ?? [])</script>
+    <script id="home-pm10-color" type="application/json">@json($pm10Summary['category']['hex'] ?? '#2563EB')</script>
+    <script id="home-pm25-color" type="application/json">@json($pm25Summary['category']['hex'] ?? '#16A34A')</script>
 </div>
 @endsection

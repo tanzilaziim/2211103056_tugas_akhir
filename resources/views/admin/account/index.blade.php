@@ -82,8 +82,6 @@
                         <div data-role-menu class="absolute left-0 top-full z-10 mt-1 hidden w-full overflow-hidden rounded-xl border border-surface-200 bg-surface-100 shadow-lg">
                             <button type="button" data-role-option="Super Admin" class="block w-full px-4 py-3 text-left text-base text-surface-400 transition-colors hover:bg-primary-50">Super Admin</button>
                             <button type="button" data-role-option="Admin" class="block w-full px-4 py-3 text-left text-base text-surface-400 transition-colors hover:bg-primary-50">Admin</button>
-                            <button type="button" data-role-option="Operator" class="block w-full px-4 py-3 text-left text-base text-surface-400 transition-colors hover:bg-primary-50">Operator</button>
-                            <button type="button" data-role-option="Viewer" class="block w-full px-4 py-3 text-left text-base text-surface-400 transition-colors hover:bg-primary-50">Viewer</button>
                         </div>
                     </div>
                     <p data-error-role class="hidden text-xs text-ispu-sangat-tidak-sehat"></p>

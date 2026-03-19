@@ -1,7 +1,10 @@
+@php
+    $newTab = $newTab ?? true;
+@endphp
+
 <a
     href="{{ $href }}"
-    target="_blank"
-    rel="noopener noreferrer"
+    @if ($newTab) target="_blank" rel="noopener noreferrer" @endif
     class="group flex items-center gap-2 text-sm font-bold text-surface-50 transition-colors hover:text-primary-100"
 >
     <span>{{ $label }}</span>

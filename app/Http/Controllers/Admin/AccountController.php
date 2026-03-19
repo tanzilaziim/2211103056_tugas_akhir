@@ -14,19 +14,17 @@ class AccountController extends Controller
     private const ROLE_MAP_TO_DB = [
         'Super Admin' => 'super_admin',
         'Admin' => 'admin',
-        'Operator' => 'operator',
-        'Viewer' => 'viewer',
     ];
 
     private const ROLE_MAP_FROM_DB = [
         'super_admin' => 'Super Admin',
         'admin' => 'Admin',
-        'operator' => 'Operator',
-        'viewer' => 'Viewer',
     ];
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        $this->ensureSuperAdmin($request);
+
         $accounts = User::query()
             ->orderByDesc('id')
             ->get()
@@ -172,4 +170,3 @@ class AccountController extends Controller
         return 'Dlh#' . substr(bin2hex(random_bytes(6)), 0, 8);
     }
 }
-

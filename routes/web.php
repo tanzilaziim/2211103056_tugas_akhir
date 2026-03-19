@@ -7,11 +7,12 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\LstmRunController;
 use App\Http\Controllers\Admin\PredictionController;
 use App\Http\Controllers\PublicActualDataController;
+use App\Http\Controllers\PublicHomeController;
 use App\Http\Controllers\PublicPredictionController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Redirect;
 
-Route::view('/', 'public.home.index')->name('public.home');
+Route::get('/', PublicHomeController::class)->name('public.home');
 Route::view('/prediksi', 'public.prediction.index')->name('public.prediction');
 Route::view('/data-aktual', 'public.actual-data.index')->name('public.actual-data');
 Route::view('/tentang', 'public.about.index')->name('public.about');
@@ -34,7 +35,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/prediksi', fn () => Redirect::route('admin.prediction.data'))->name('prediction');
         Route::get('/prediksi/data', fn () => view('admin.prediction.index', ['section' => 'data']))->name('prediction.data');
         Route::get('/prediksi/grafik', fn () => view('admin.prediction.index', ['section' => 'chart']))->name('prediction.chart');
-        Route::view('/pengaturan-akun', 'admin.account.index')->name('account');
+        Route::get('/pengaturan-akun', function () {
+            abort_unless(request()->user()?->role === 'super_admin', 403);
+
+            return view('admin.account.index');
+        })->name('account');
 
         Route::prefix('/api/accounts')->name('api.accounts.')->group(function () {
             Route::get('/', [AccountController::class, 'index'])->name('index');

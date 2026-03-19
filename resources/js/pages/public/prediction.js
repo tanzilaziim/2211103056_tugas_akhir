@@ -51,6 +51,28 @@ const formatMonthId = (monthStr) => {
     }
 };
 
+const formatShortDate = (isoDate) => {
+    try {
+        return new Date(`${isoDate}T00:00:00`).toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+        });
+    } catch {
+        return isoDate;
+    }
+};
+
+const formatMonthShortId = (monthStr) => {
+    try {
+        const [year, month] = String(monthStr).split('-').map(Number);
+        const date = new Date(year, month - 1, 1);
+        return date.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+    } catch {
+        return monthStr;
+    }
+};
+
 const hexToRgba = (hex, alpha) => {
     const normalized = String(hex || '').replace('#', '');
     const value = parseInt(normalized.length === 3 ? normalized.split('').map((c) => c + c).join('') : normalized, 16);
@@ -85,7 +107,7 @@ const initPredictionPage = () => {
         rangeEnd: '',
         month: '',
         availableDates: [],
-        activeTab: 'pm25',
+        activeTab: 'pm10',
         labels: [],
         pm10Series: [],
         pm25Series: [],
@@ -96,10 +118,8 @@ const initPredictionPage = () => {
     const dateToggle = root.querySelector('[data-date-toggle]');
     const dateMenu = root.querySelector('[data-date-menu]');
     const dateDisplay = root.querySelector('[data-date-display]');
-    const dateCurrent = root.querySelector('[data-date-current]');
-    const datePrev = root.querySelector('[data-date-prev]');
-    const dateNext = root.querySelector('[data-date-next]');
-    const dateList = root.querySelector('[data-date-list]');
+    const dateSingleInput = root.querySelector('[data-date-single]');
+    const dateSingleApply = root.querySelector('[data-date-single-apply]');
     const dateModeSingle = root.querySelector('[data-date-mode="single"]');
     const dateModeRange = root.querySelector('[data-date-mode="range"]');
     const dateModeMonth = root.querySelector('[data-date-mode="month"]');
@@ -108,6 +128,7 @@ const initPredictionPage = () => {
     const rangeApplyBtn = root.querySelector('[data-date-range-apply]');
     const monthInput = root.querySelector('[data-date-month]');
     const monthApplyBtn = root.querySelector('[data-date-month-apply]');
+    const accessRange = root.querySelector('[data-access-range]');
 
     const pm10Card = root.querySelector('[data-pm10-card]');
     const pm25Card = root.querySelector('[data-pm25-card]');
@@ -133,7 +154,7 @@ const initPredictionPage = () => {
     const pm25Canvas = document.getElementById('pm25-chart');
 
     if (
-        !periodButtons.length || !dateToggle || !dateMenu || !dateDisplay || !dateCurrent || !datePrev || !dateNext || !dateList ||
+        !periodButtons.length || !dateToggle || !dateMenu || !dateDisplay || !dateSingleInput || !dateSingleApply ||
         !dateModeSingle || !dateModeRange || !dateModeMonth || !rangeStartInput || !rangePreview || !rangeApplyBtn || !monthInput || !monthApplyBtn ||
         !pm10Card || !pm25Card || !pm10Icon || !pm25Icon || !pm10Status || !pm25Status || !pm10Avg || !pm10High || !pm10Low || !pm25Avg || !pm25High || !pm25Low ||
         !pm10Title || !pm25Title || !tabPm10 || !tabPm25 || !tableBody || !tableTimeHead ||
@@ -180,6 +201,35 @@ const initPredictionPage = () => {
         return params.toString();
     };
 
+    const renderAccessibleRange = () => {
+        if (!(accessRange instanceof HTMLElement)) return;
+        if (!state.availableDates.length) {
+            accessRange.textContent = 'Rentang prediksi tersedia: -';
+            return;
+        }
+
+        const sortedDates = [...state.availableDates].sort();
+        const startDate = sortedDates[0];
+        const endDate = sortedDates[sortedDates.length - 1];
+        const mode = getDateMode(state.range);
+
+        if (mode === 'month') {
+            const startMonth = startDate.slice(0, 7);
+            const endMonth = endDate.slice(0, 7);
+            accessRange.textContent = `Rentang prediksi tersedia: ${formatMonthShortId(startMonth)} - ${formatMonthShortId(endMonth)}`;
+            return;
+        }
+
+        accessRange.textContent = `Rentang prediksi tersedia: ${formatShortDate(startDate)} - ${formatShortDate(endDate)}`;
+    };
+
+    const normalizeToAvailableDate = (dateValue) => {
+        if (!state.availableDates.length) return dateValue;
+        if (state.availableDates.includes(dateValue)) return dateValue;
+        const candidate = state.availableDates.filter((d) => d <= dateValue).at(-1);
+        return candidate || state.availableDates[0];
+    };
+
     const renderPeriodButtons = () => {
         periodButtons.forEach((button) => {
             const active = button.getAttribute('data-period-btn') === state.range;
@@ -194,28 +244,15 @@ const initPredictionPage = () => {
         dateModeSingle.classList.toggle('hidden', mode !== 'single');
         dateModeRange.classList.toggle('hidden', mode !== 'range');
         dateModeMonth.classList.toggle('hidden', mode !== 'month');
+        renderAccessibleRange();
 
         if (mode === 'single') {
             dateDisplay.textContent = state.date ? formatIdDate(state.date) : '-';
-            dateCurrent.textContent = state.date ? formatIdDate(state.date) : '-';
-            const idx = state.availableDates.indexOf(state.date);
-            datePrev.disabled = idx <= 0;
-            dateNext.disabled = idx < 0 || idx >= state.availableDates.length - 1;
-
-            dateList.innerHTML = state.availableDates.map((dateStr) => {
-                const active = dateStr === state.date;
-                return `<button type="button" data-date-value="${dateStr}" class="w-full rounded-lg px-3 py-1.5 text-left text-sm transition-colors ${active ? 'bg-primary-300 text-surface-50' : 'text-surface-300 hover:bg-surface-200'}">${formatIdDate(dateStr)}</button>`;
-            }).join('');
-
-            dateList.querySelectorAll('[data-date-value]').forEach((button) => {
-                button.addEventListener('click', async () => {
-                    const value = button.getAttribute('data-date-value');
-                    if (!value) return;
-                    state.date = value;
-                    dateMenu.classList.add('hidden');
-                    await loadData();
-                });
-            });
+            dateSingleInput.value = state.date || '';
+            if (state.availableDates.length) {
+                dateSingleInput.min = state.availableDates[0];
+                dateSingleInput.max = state.availableDates[state.availableDates.length - 1];
+            }
             return;
         }
 
@@ -223,17 +260,11 @@ const initPredictionPage = () => {
             dateDisplay.textContent = state.rangeStart && state.rangeEnd ? `${formatIdDate(state.rangeStart)} - ${formatIdDate(state.rangeEnd)}` : '-';
             rangeStartInput.value = state.rangeStart || '';
             rangePreview.textContent = state.rangeStart && state.rangeEnd ? `${formatIdDate(state.rangeStart)} s.d ${formatIdDate(state.rangeEnd)}` : '-';
-            datePrev.disabled = true;
-            dateNext.disabled = true;
-            dateList.innerHTML = '';
             return;
         }
 
         dateDisplay.textContent = state.month ? formatMonthId(state.month) : '-';
         monthInput.value = state.month || '';
-        datePrev.disabled = true;
-        dateNext.disabled = true;
-        dateList.innerHTML = '';
     };
 
     const renderCards = () => {
@@ -320,6 +351,7 @@ const initPredictionPage = () => {
         state.rangeStart = data?.defaults?.start || state.date;
         state.rangeEnd = data?.defaults?.end || state.date;
         state.month = data?.defaults?.month || (state.date ? state.date.slice(0, 7) : '');
+        renderAccessibleRange();
     };
 
     const loadData = async () => {
@@ -378,22 +410,11 @@ const initPredictionPage = () => {
         dateMenu.classList.toggle('hidden');
     });
 
-    datePrev.addEventListener('click', async () => {
-        if (getDateMode(state.range) !== 'single') return;
-        const idx = state.availableDates.indexOf(state.date);
-        if (idx > 0) {
-            state.date = state.availableDates[idx - 1];
-            await loadData();
-        }
-    });
-
-    dateNext.addEventListener('click', async () => {
-        if (getDateMode(state.range) !== 'single') return;
-        const idx = state.availableDates.indexOf(state.date);
-        if (idx >= 0 && idx < state.availableDates.length - 1) {
-            state.date = state.availableDates[idx + 1];
-            await loadData();
-        }
+    dateSingleApply.addEventListener('click', async () => {
+        if (!dateSingleInput.value) return;
+        state.date = normalizeToAvailableDate(dateSingleInput.value);
+        dateMenu.classList.add('hidden');
+        await loadData();
     });
 
     rangeApplyBtn.addEventListener('click', async () => {
