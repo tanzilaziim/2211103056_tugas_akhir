@@ -30,9 +30,9 @@
                     <span>2026 - Dinas Lingkungan Hidup Kabupaten Indramayu</span>
                 </span>
                 <img
-                    src="{{ Vite::asset('resources/assets/images/logo_dlh.png') }}"
+                    src="{{ Vite::asset('resources/assets/images/logo_dlh_white.png') }}"
                     alt="Logo Dinas Lingkungan Hidup"
-                    class="h-5 w-auto object-contain sm:h-6"
+                    class="h-5 w-auto object-contain sm:h-8"
                 >
                 <span class="hidden font-bold sm:inline">-</span>
                 <span class="font-medium">In Collaboration With</span>
