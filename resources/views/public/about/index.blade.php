@@ -107,13 +107,13 @@ SVG;
                 berdasarkan kategori kualitas udara.
             </p>
 
-            <div class="mb-3 inline-flex items-center gap-3 rounded-[10px] border border-surface-200 bg-white px-4 py-2">
+            <div class="mb-3 inline-flex h-14 items-center gap-2 overflow-hidden rounded-[10px] border border-surface-200 bg-surface-100 px-3 py-0">
                 <img
                     src="{{ Vite::asset('resources/assets/images/logo_dlh.png') }}"
                     alt="Logo Dinas Lingkungan Hidup"
-                    class="h-[58px] w-[58px] shrink-0 object-contain"
+                    class="h-[72px] w-[72px] shrink-0 object-contain"
                 >
-                <span class="text-sm text-surface-300 sm:text-base">Disediakan oleh: Dinas Lingkungan Hidup Kabupaten Indramayu</span>
+                <span class="text-sm leading-none text-surface-300 sm:text-base">Disediakan oleh: Dinas Lingkungan Hidup Kabupaten Indramayu</span>
             </div>
 
             <p class="text-xs text-surface-300 sm:text-sm">
