@@ -22,7 +22,7 @@
                     <span class="text-surface-50">SiP</span><span class="text-surface-200">KUI</span>
                 </div>
                 <p
-                    class="mt-3 text-[9px] font-bold uppercase tracking-[0.03em] text-surface-100 sm:text-[11px] lg:mt-4 lg:text-[16px]"
+                    class="mt-1 text-[9px] font-bold uppercase tracking-[0.03em] text-surface-100 sm:text-[11px] lg:mt-2 lg:text-[16px]"
                     style="font-family:'Montserrat',sans-serif;"
                 >
                     Sistem Prediksi Kualitas Udara
