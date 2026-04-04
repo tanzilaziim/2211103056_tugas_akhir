@@ -14,17 +14,30 @@
 
         <div class="relative z-10 flex min-h-[44vh] items-center justify-center px-6 pb-28 pt-12 text-center sm:pb-24 lg:min-h-screen lg:px-10 lg:pb-24">
             <div>
-                <h1 class="text-xl font-bold leading-tight tracking-wide text-surface-50 sm:text-2xl lg:text-[32px]">
-                    SISTEM INFORMASI PREDIKSI KUALITAS UDARA
-                </h1>
-                <h2 class="mt-2 text-xl font-bold leading-tight tracking-wide text-surface-50 sm:text-2xl lg:mt-3 lg:text-[32px]">
-                    KABUPATEN INDRAMAYU
-                </h2>
+                <div
+                    class="select-none text-[42px] font-extrabold leading-none tracking-tight text-center sm:text-[64px] lg:text-[96px]"
+                    style="font-family:'Montserrat',sans-serif;"
+                    aria-label="SiPKUI"
+                >
+                    <span class="text-surface-50">SiP</span><span class="text-surface-200">KUI</span>
+                </div>
+                <p
+                    class="mt-3 text-[9px] font-bold uppercase tracking-[0.03em] text-surface-100 sm:text-[11px] lg:mt-4 lg:text-[16px]"
+                    style="font-family:'Montserrat',sans-serif;"
+                >
+                    Sistem Prediksi Kualitas Udara
+                </p>
+                <p
+                    class="mt-1 text-[8px] font-medium uppercase tracking-[0.03em] text-surface-200 sm:text-[10px] lg:mt-1 lg:text-[14px]"
+                    style="font-family:'Montserrat',sans-serif;"
+                >
+                    Kabupaten Indramayu
+                </p>
             </div>
         </div>
 
         <div class="absolute inset-x-0 bottom-0 z-10 px-4 pb-4 pt-3 sm:px-6 lg:px-8">
-            <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[11px] text-primary-100 sm:text-sm lg:text-base">
+            <div class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[11px] text-surface-100 sm:text-sm lg:text-base">
                 <span class="inline-flex items-center gap-1 text-center font-bold">
                     <i class="ph ph-copyright"></i>
                     <span>2026 - Dinas Lingkungan Hidup Kabupaten Indramayu</span>
@@ -100,4 +113,3 @@
     </div>
 </div>
 @endsection
-

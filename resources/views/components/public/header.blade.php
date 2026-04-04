@@ -1,5 +1,5 @@
 ﻿<header class="w-full" id="public-header">
-    <div class="flex items-center justify-between bg-surface-50 px-4 py-2 md:px-8">
+    <div class="flex items-center justify-between bg-surface-50 px-4 py-1 md:px-8">
         <span id="header-date" class="text-xs font-normal uppercase tracking-wide text-surface-300 md:text-sm"></span>
         <div class="flex items-center gap-2">
             <span class="text-xs font-normal uppercase text-surface-300 md:text-sm">STANDAR WAKTU INDONESIA</span>
@@ -7,19 +7,16 @@
         </div>
     </div>
 
-    <div class="border-b-2 border-surface-200 bg-white px-4 py-3 md:px-8">
+    <div class="border-b-2 border-surface-200 bg-white px-4 py-5 md:px-8">
         <div class="flex items-center justify-between">
             <a href="{{ route('public.home') }}" class="flex shrink-0 items-center gap-3">
-                <img
-                    src="{{ Vite::asset('resources/assets/images/logo_tup_vertical.png') }}"
-                    alt="Logo Telkom University Purwokerto"
-                    class="h-14 w-14 object-contain"
-                />
-                <img
-                    src="{{ Vite::asset('resources/assets/images/logo_dlh.png') }}"
-                    alt="Logo DLH"
-                    class="h-14 w-20 object-contain"
-                />
+                <span
+                    class="select-none text-[32px] font-extrabold leading-none tracking-tight md:text-[42px]"
+                    style="font-family:'Montserrat',sans-serif;"
+                    aria-label="SiPKUI"
+                >
+                    <span style="color:#0B847A;">SiP</span><span style="color:#59C5BF;">KUI</span>
+                </span>
                 <div class="hidden sm:block">
                     <p class="text-sm font-bold leading-tight text-surface-400 md:text-base">SISTEM PREDIKSI KUALITAS UDARA</p>
                     <p class="text-sm font-bold leading-tight text-surface-400 md:text-base">KABUPATEN INDRAMAYU</p>
@@ -102,4 +99,3 @@
         }
     })();
 </script>
-
