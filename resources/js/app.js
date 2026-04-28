@@ -14,4 +14,6 @@ import './pages/admin/actual-data';
 import './pages/admin/lstm';
 import './pages/admin/prediction';
 import './pages/admin/account';
-
+import.meta.glob([
+  '../assets/**',
+]);
