@@ -21,6 +21,14 @@ Route::get('/api/public/prediction/meta', [PublicPredictionController::class, 'm
 Route::get('/api/public/prediction', [PublicPredictionController::class, 'data'])->name('public.api.prediction.data');
 
 Route::prefix('admin')->name('admin.')->group(function () {
+    Route::get('/', function () {
+        if (auth()->check()) {
+            return Redirect::route('admin.dashboard');
+        }
+
+        return Redirect::route('admin.login');
+    })->name('entry');
+
     Route::middleware('guest')->group(function () {
         Route::get('/login', fn () => view('admin.auth.login'))->name('login');
         Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
