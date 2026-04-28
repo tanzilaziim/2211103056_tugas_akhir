@@ -14,6 +14,31 @@
 
     $pm10Summary = $payload['pm10']['summary'] ?? [];
     $pm25Summary = $payload['pm25']['summary'] ?? [];
+
+    $severityRank = [
+        'baik' => 1,
+        'sedang' => 2,
+        'tidakSehat' => 3,
+        'sangatTidakSehat' => 4,
+        'berbahaya' => 5,
+    ];
+
+    $adviceByCategory = [
+        'baik' => 'Kualitas udara relatif baik, silakan beraktivitas seperti biasa. Tetap cek informasi secara berkala.',
+        'sedang' => 'Kualitas udara sedang, aktivitas luar ruang masih dapat dilakukan dengan tetap waspada dan memantau kondisi.',
+        'tidakSehat' => 'Kualitas udara tidak sehat, kurangi aktivitas luar ruang dalam durasi lama dan pertimbangkan penggunaan pelindung.',
+        'sangatTidakSehat' => 'Kualitas udara sangat tidak sehat, batasi aktivitas luar ruang dan prioritaskan berada di dalam ruangan.',
+        'berbahaya' => 'Kualitas udara berbahaya, hindari aktivitas luar ruang dan ikuti arahan resmi dari instansi terkait.',
+    ];
+
+    $pm10CategoryKey = $pm10Summary['category']['key'] ?? 'sedang';
+    $pm25CategoryKey = $pm25Summary['category']['key'] ?? 'sedang';
+    $pm10Level = $severityRank[$pm10CategoryKey] ?? $severityRank['sedang'];
+    $pm25Level = $severityRank[$pm25CategoryKey] ?? $severityRank['sedang'];
+    $dominantCategory = $pm10Level >= $pm25Level ? $pm10CategoryKey : $pm25CategoryKey;
+
+    $homeAdvice = $adviceByCategory[$dominantCategory]
+        ?? 'Silakan cek informasi kualitas udara secara berkala.';
 @endphp
 
 @php
@@ -148,7 +173,7 @@ SVG;
         <div class="flex items-start gap-3 rounded-[15px] border border-primary-300 bg-[rgba(15,118,110,0.25)] px-5 py-4">
             <div class="mt-0.5 flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-primary-300 text-base font-bold text-surface-50">i</div>
             <p class="text-sm font-bold leading-snug text-surface-400 sm:text-lg">
-                Kualitas udara relatif baik, silahkan lakukan aktivitas yang akan anda lakukan. Jangan lupa cek secara berkala dan jangan lupa untuk selalu tersenyum.
+                {{ $homeAdvice }}
             </p>
         </div>
     </div>
