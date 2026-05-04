@@ -14,6 +14,7 @@
 
     $pm10Summary = $payload['pm10']['summary'] ?? [];
     $pm25Summary = $payload['pm25']['summary'] ?? [];
+    $hasActiveRun = (bool) ($payload['has_active_run'] ?? false);
 
     $severityRank = [
         'baik' => 1,
@@ -31,14 +32,17 @@
         'berbahaya' => 'Kualitas udara berbahaya, hindari aktivitas luar ruang dan ikuti arahan resmi dari instansi terkait.',
     ];
 
-    $pm10CategoryKey = $pm10Summary['category']['key'] ?? 'sedang';
-    $pm25CategoryKey = $pm25Summary['category']['key'] ?? 'sedang';
-    $pm10Level = $severityRank[$pm10CategoryKey] ?? $severityRank['sedang'];
-    $pm25Level = $severityRank[$pm25CategoryKey] ?? $severityRank['sedang'];
-    $dominantCategory = $pm10Level >= $pm25Level ? $pm10CategoryKey : $pm25CategoryKey;
-
-    $homeAdvice = $adviceByCategory[$dominantCategory]
-        ?? 'Silakan cek informasi kualitas udara secara berkala.';
+    if ($hasActiveRun) {
+        $pm10CategoryKey = $pm10Summary['category']['key'] ?? 'sedang';
+        $pm25CategoryKey = $pm25Summary['category']['key'] ?? 'sedang';
+        $pm10Level = $severityRank[$pm10CategoryKey] ?? $severityRank['sedang'];
+        $pm25Level = $severityRank[$pm25CategoryKey] ?? $severityRank['sedang'];
+        $dominantCategory = $pm10Level >= $pm25Level ? $pm10CategoryKey : $pm25CategoryKey;
+        $homeAdvice = $adviceByCategory[$dominantCategory]
+            ?? 'Silakan cek informasi kualitas udara secara berkala.';
+    } else {
+        $homeAdvice = 'Prediksi belum tersedia saat ini. Silakan cek kembali setelah proses prediksi dijalankan oleh admin.';
+    }
 @endphp
 
 @php
@@ -123,6 +127,11 @@ SVG;
                         <i class="ph ph-arrow-right"></i>
                     </a>
                 </div>
+                @if (! $hasActiveRun)
+                    <div class="mb-3 rounded-[10px] border border-[#F59E0B] bg-[#FFFBEB] px-3 py-2 text-sm font-medium text-[#B45309]">
+                        Prediksi belum tersedia. Data prediksi akan tampil setelah admin mengaktifkan hasil run prediksi.
+                    </div>
+                @endif
                 <p class="mb-3 text-sm font-medium text-primary-300">{{ $payload['window_date_label'] ?? '-' }}</p>
 
                 <div class="flex flex-col gap-6 sm:flex-row">

@@ -36,7 +36,10 @@ class PublicPredictionController extends Controller
             ->unique()
             ->values()
             ->all();
-        $single = $dates[0] ?? null;
+        $today = Carbon::now()->toDateString();
+        $currentMonth = Carbon::now()->format('Y-m');
+        $single = in_array($today, $dates, true) ? $today : ($dates[0] ?? null);
+        $defaultMonth = in_array($currentMonth, $months, true) ? $currentMonth : ($single ? substr($single, 0, 7) : null);
 
         return response()->json([
             'data' => [
@@ -52,7 +55,7 @@ class PublicPredictionController extends Controller
                     'single' => $single,
                     'start' => $single,
                     'end' => $single ? Carbon::parse($single)->addDays(6)->toDateString() : null,
-                    'month' => $single ? substr($single, 0, 7) : null,
+                    'month' => $defaultMonth,
                 ],
             ],
         ]);
@@ -231,4 +234,3 @@ class PublicPredictionController extends Controller
         return ['avg' => 0, 'max' => 0, 'min' => 0];
     }
 }
-

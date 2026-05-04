@@ -66,7 +66,7 @@ KABUPATEN INDRAMAYU</p>
             <div>
                 <p class="mb-5 text-base font-bold text-primary-100">TAUTAN</p>
                 <div class="flex flex-col gap-4">
-                    @include('components.public.link-item', ['label' => 'Website DLH Kabupaten Indramayu', 'href' => 'https://dlhkabindramayu.id/'])
+                    @include('components.public.link-item', ['label' => 'Website DLH Kabupaten Indramayu', 'href' => 'https://dlh.indramayukab.go.id/'])
                     @include('components.public.link-item', ['label' => 'Indeks Standar Pencemaran Udara', 'href' => 'https://ispu.menlhk.go.id/webv5/'])
                     @include('components.public.link-item', ['label' => 'Kementerian Lingkungan Hidup', 'href' => 'https://kemenlh.go.id/'])
                 </div>
@@ -80,7 +80,7 @@ KABUPATEN INDRAMAYU</p>
                 <i class="ph ph-copyright"></i>
                 <span>2026 - Dinas Lingkungan Hidup Kabupaten Indramayu</span>
             </span>
-            <a href="https://dlhkabindramayu.id/" target="_blank" rel="noopener noreferrer" class="transition-opacity hover:opacity-80">
+            <a href="https://dlh.indramayukab.go.id/" target="_blank" rel="noopener noreferrer" class="transition-opacity hover:opacity-80">
                 <img
                     src="{{ Vite::asset('resources/assets/images/logo_dlh_white.png') }}"
                     alt="Logo Dinas Lingkungan Hidup"

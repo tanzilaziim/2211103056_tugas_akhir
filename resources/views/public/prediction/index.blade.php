@@ -50,6 +50,9 @@
                 Rentang prediksi tersedia: -
             </p>
         </div>
+        <div data-no-active-run-message class="mb-6 hidden rounded-[12px] border border-[#F59E0B] bg-[#FFFBEB] px-4 py-3 text-sm font-medium text-[#B45309]">
+            Prediksi belum tersedia. Data prediksi akan tampil setelah admin mengaktifkan hasil run prediksi.
+        </div>
 
         <div class="mb-5 flex flex-col gap-4 sm:flex-row">
             <div data-pm10-card class="min-w-0 flex-1 rounded-[15px] border border-slate-200 p-6 shadow-sm" style="background: linear-gradient(180deg, rgba(37, 99, 235, 0.25) 0%, rgba(255, 255, 255, 0.25) 100%);">

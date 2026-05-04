@@ -129,6 +129,7 @@ const initPredictionPage = () => {
     const monthInput = root.querySelector('[data-date-month]');
     const monthApplyBtn = root.querySelector('[data-date-month-apply]');
     const accessRange = root.querySelector('[data-access-range]');
+    const noActiveRunMessage = root.querySelector('[data-no-active-run-message]');
 
     const pm10Card = root.querySelector('[data-pm10-card]');
     const pm25Card = root.querySelector('[data-pm25-card]');
@@ -155,7 +156,7 @@ const initPredictionPage = () => {
 
     if (
         !periodButtons.length || !dateToggle || !dateMenu || !dateDisplay || !dateSingleInput || !dateSingleApply ||
-        !dateModeSingle || !dateModeRange || !dateModeMonth || !rangeStartInput || !rangePreview || !rangeApplyBtn || !monthInput || !monthApplyBtn ||
+        !dateModeSingle || !dateModeRange || !dateModeMonth || !rangeStartInput || !rangePreview || !rangeApplyBtn || !monthInput || !monthApplyBtn || !noActiveRunMessage ||
         !pm10Card || !pm25Card || !pm10Icon || !pm25Icon || !pm10Status || !pm25Status || !pm10Avg || !pm10High || !pm10Low || !pm25Avg || !pm25High || !pm25Low ||
         !pm10Title || !pm25Title || !tabPm10 || !tabPm25 || !tableBody || !tableTimeHead ||
         !(pm10Canvas instanceof HTMLCanvasElement) || !(pm25Canvas instanceof HTMLCanvasElement)
@@ -221,6 +222,10 @@ const initPredictionPage = () => {
         }
 
         accessRange.textContent = `Rentang prediksi tersedia: ${formatShortDate(startDate)} - ${formatShortDate(endDate)}`;
+    };
+
+    const renderSystemMessage = () => {
+        noActiveRunMessage.classList.toggle('hidden', state.hasActiveRun);
     };
 
     const normalizeToAvailableDate = (dateValue) => {
@@ -334,6 +339,11 @@ const initPredictionPage = () => {
         tabPm25.classList.toggle('text-surface-50', !isPm10);
         tabPm25.classList.toggle('text-slate-600', isPm10);
 
+        if (!state.labels.length) {
+            tableBody.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-slate-500">Prediksi belum tersedia.</td></tr>';
+            return;
+        }
+
         tableBody.innerHTML = state.labels.map((label, idx) => {
             const value = series[idx];
             const display = value === null || value === undefined ? '-' : value;
@@ -360,6 +370,7 @@ const initPredictionPage = () => {
             state.pm10Series = [];
             state.pm25Series = [];
             renderDateMenu();
+            renderSystemMessage();
             renderCards();
             renderCharts();
             renderTable();
@@ -380,6 +391,7 @@ const initPredictionPage = () => {
         if (applied.date_month) state.month = applied.date_month;
 
         renderDateMenu();
+        renderSystemMessage();
         renderCards();
         renderCharts();
         renderTable();
@@ -447,6 +459,7 @@ const initPredictionPage = () => {
             await loadMeta();
             renderPeriodButtons();
             renderDateMenu();
+            renderSystemMessage();
             await loadData();
         } catch (error) {
             console.error(error);

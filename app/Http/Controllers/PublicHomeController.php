@@ -16,6 +16,7 @@ class PublicHomeController extends Controller
         $run = $this->resolveActiveRun();
 
         $payload = [
+            'has_active_run' => false,
             'window_title' => 'Ringkasan Prediksi 6 Jam ke Depan',
             'window_date_label' => '-',
             'labels' => [],
@@ -46,6 +47,7 @@ class PublicHomeController extends Controller
             $pm25Summary = $this->buildSummary($pm25Series);
 
             $payload = [
+                'has_active_run' => true,
                 'window_title' => $window['title'],
                 'window_date_label' => $this->buildWindowDateLabel($rows),
                 'labels' => $rows->map(fn (LstmPrediction $row) => $row->predicted_for?->format('H:i'))->values()->all(),
@@ -90,14 +92,16 @@ class PublicHomeController extends Controller
     private function resolveSixHourWindow(int $runId): array
     {
         $now = Carbon::now();
+        $anchorHour = $now->copy()->startOfHour();
+        $windowEnd = $anchorHour->copy()->addHours(6);
         $todayStart = $now->copy()->startOfDay();
         $todayEnd = $now->copy()->endOfDay();
 
         $todayForward = $this->forecastQuery($runId)
             ->whereBetween('predicted_for', [$todayStart, $todayEnd])
-            ->where('predicted_for', '>=', $now)
+            ->where('predicted_for', '>=', $anchorHour)
+            ->where('predicted_for', '<', $windowEnd)
             ->orderBy('predicted_for')
-            ->limit(6)
             ->get(['predicted_for', 'pm10_predicted', 'pm25_predicted']);
 
         if ($todayForward->count() > 0) {
@@ -107,12 +111,25 @@ class PublicHomeController extends Controller
             ];
         }
 
-        $lastRows = $this->forecastQuery($runId)
+        $latestPredictedFor = $this->forecastQuery($runId)
             ->orderByDesc('predicted_for')
-            ->limit(6)
-            ->get(['predicted_for', 'pm10_predicted', 'pm25_predicted'])
-            ->sortBy('predicted_for')
-            ->values();
+            ->value('predicted_for');
+
+        if (! $latestPredictedFor) {
+            return [
+                'title' => 'Ringkasan Prediksi 6 Jam Terakhir',
+                'rows' => collect(),
+            ];
+        }
+
+        $latest = Carbon::parse($latestPredictedFor);
+        $fallbackStart = $latest->copy()->subHours(6);
+
+        $lastRows = $this->forecastQuery($runId)
+            ->where('predicted_for', '>', $fallbackStart)
+            ->where('predicted_for', '<=', $latest)
+            ->orderBy('predicted_for')
+            ->get(['predicted_for', 'pm10_predicted', 'pm25_predicted']);
 
         return [
             'title' => 'Ringkasan Prediksi 6 Jam Terakhir',
