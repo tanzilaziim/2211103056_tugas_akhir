@@ -137,6 +137,29 @@ def predict_next(model_pack, history_df, lookback):
     return float(pred)
 
 
+def build_slot_profile(history_df, days=14):
+    rows_needed = max(48 * days, 48)
+    recent = history_df.tail(rows_needed).copy()
+    if recent.empty:
+        return {}
+
+    recent = recent.reset_index().rename(columns={"index": "datetime"})
+    recent["slot"] = recent["datetime"].dt.hour * 2 + (recent["datetime"].dt.minute // 30)
+
+    grouped = recent.groupby("slot", as_index=False).agg(
+        pm10=("pm10", "mean"),
+        pm25=("pm25", "mean"),
+    )
+
+    profile = {}
+    for _, row in grouped.iterrows():
+        profile[int(row["slot"])] = {
+            "pm10": float(row["pm10"]),
+            "pm25": float(row["pm25"]),
+        }
+    return profile
+
+
 def main():
     args = parse_args()
     payload = load_input(args.input)
@@ -250,11 +273,29 @@ def main():
     forecast_end = pd.to_datetime(forecast_window.get("end"))
 
     history_df = df.copy()
+    slot_profile = build_slot_profile(history_df, days=14)
+    alpha_start = 0.75
+    alpha_min = 0.45
+    alpha_decay = 0.0005
+
     cursor = forecast_start
     gen_start = time.time()
+    forecast_debug = []
+    forecast_step = 0
     while cursor <= forecast_end:
-        pm10_pred = predict_next(full_pm10, history_df, lookback)
-        pm25_pred = predict_next(full_pm25, history_df, lookback)
+        pm10_model = predict_next(full_pm10, history_df, lookback)
+        pm25_model = predict_next(full_pm25, history_df, lookback)
+
+        slot = cursor.hour * 2 + (cursor.minute // 30)
+        slot_base = slot_profile.get(slot)
+
+        alpha = max(alpha_start - (alpha_decay * forecast_step), alpha_min)
+        if slot_base:
+            pm10_pred = (alpha * pm10_model) + ((1.0 - alpha) * slot_base["pm10"])
+            pm25_pred = (alpha * pm25_model) + ((1.0 - alpha) * slot_base["pm25"])
+        else:
+            pm10_pred = pm10_model
+            pm25_pred = pm25_model
 
         preds.append(
             {
@@ -270,8 +311,59 @@ def main():
         idx_counter += 1
         history_df.loc[cursor, "pm10"] = pm10_pred
         history_df.loc[cursor, "pm25"] = pm25_pred
+        forecast_debug.append(
+            {
+                "datetime": cursor.strftime("%Y-%m-%d %H:%M:%S"),
+                "pm10_model": float(pm10_model),
+                "pm25_model": float(pm25_model),
+                "pm10_predicted": float(pm10_pred),
+                "pm25_predicted": float(pm25_pred),
+                "alpha": float(alpha),
+                "slot": int(slot),
+            }
+        )
         cursor += pd.Timedelta(minutes=30)
+        forecast_step += 1
     gen_duration = max(1, int(time.time() - gen_start))
+
+    # Debug diagnostik untuk memeriksa flatten di horizon panjang
+    debug_df = pd.DataFrame(forecast_debug)
+    flatten_start_date = None
+    flatten_threshold_std = 0.35
+    flatten_days_streak_needed = 2
+    daily_stats = []
+    if not debug_df.empty:
+        debug_df["datetime"] = pd.to_datetime(debug_df["datetime"])
+        debug_df["date"] = debug_df["datetime"].dt.date.astype(str)
+
+        grouped = debug_df.groupby("date", sort=True)
+        streak = 0
+        for day, g in grouped:
+            pm10_std = float(np.std(g["pm10_predicted"].values)) if len(g) else 0.0
+            pm25_std = float(np.std(g["pm25_predicted"].values)) if len(g) else 0.0
+            pm10_min = float(np.min(g["pm10_predicted"].values)) if len(g) else 0.0
+            pm10_max = float(np.max(g["pm10_predicted"].values)) if len(g) else 0.0
+            pm25_min = float(np.min(g["pm25_predicted"].values)) if len(g) else 0.0
+            pm25_max = float(np.max(g["pm25_predicted"].values)) if len(g) else 0.0
+
+            daily_stats.append(
+                {
+                    "date": day,
+                    "pm10_std": round(pm10_std, 4),
+                    "pm25_std": round(pm25_std, 4),
+                    "pm10_min": round(pm10_min, 4),
+                    "pm10_max": round(pm10_max, 4),
+                    "pm25_min": round(pm25_min, 4),
+                    "pm25_max": round(pm25_max, 4),
+                }
+            )
+
+            if pm10_std < flatten_threshold_std and pm25_std < flatten_threshold_std:
+                streak += 1
+                if streak >= flatten_days_streak_needed and flatten_start_date is None:
+                    flatten_start_date = day
+            else:
+                streak = 0
 
     output = {
         "metrics": {
@@ -359,6 +451,17 @@ def main():
             "total_seconds": int(time.time() - t0),
             "rows": int(df.shape[0]),
             "lookback": lookback,
+            "forecast_debug": {
+                "flatten_threshold_std": flatten_threshold_std,
+                "flatten_start_date": flatten_start_date,
+                "hybrid": {
+                    "alpha_start": alpha_start,
+                    "alpha_min": alpha_min,
+                    "alpha_decay": alpha_decay,
+                    "slot_profile_days": 14,
+                },
+                "daily_stats": daily_stats,
+            },
         },
     }
 
@@ -369,4 +472,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
