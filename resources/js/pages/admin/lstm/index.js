@@ -509,9 +509,7 @@ const initLstmOverview = () => {
                 state.evalRunDate.single = 'all';
                 state.logRunDate.single = 'all';
             } else {
-                const selectedTableRow = rows.find((row) => Number(row.id) === Number(state.activeRunId || state.evalRun || state.logRun)) || rows[0];
-                const selectedTableDate = extractRunDate(selectedTableRow?.waktu_eksekusi || '');
-                state.tableDate.single = selectedTableDate || 'all';
+                state.tableDate.single = 'all';
                 state.evalRunDate.single = selectedEvalDate || 'all';
                 state.logRunDate.single = selectedLogDate || 'all';
             }

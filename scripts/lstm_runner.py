@@ -70,6 +70,16 @@ def run_bivariate_lstm(train_df, test_df, feature_cols, target_col, lookback=48,
     if X_train.shape[0] == 0 or X_test.shape[0] == 0:
         raise RuntimeError(f"Sequence kosong untuk target {target_col}")
 
+    # Validasi time-series: pakai bagian akhir train (bukan split acak)
+    val_size = max(int(X_train.shape[0] * 0.2), 1)
+    if val_size >= X_train.shape[0]:
+        val_size = max(X_train.shape[0] - 1, 1)
+    X_tr, X_val = X_train[:-val_size], X_train[-val_size:]
+    y_tr, y_val = y_train[:-val_size], y_train[-val_size:]
+
+    if X_tr.shape[0] == 0:
+        raise RuntimeError(f"Data train terlalu sedikit untuk validasi target {target_col}")
+
     model = models.Sequential(
         [
             layers.Input(shape=(lookback, X_train.shape[2])),
@@ -81,13 +91,17 @@ def run_bivariate_lstm(train_df, test_df, feature_cols, target_col, lookback=48,
     model.compile(optimizer="adam", loss="mse", metrics=["mae"])
 
     es = tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True)
+    rlrop = tf.keras.callbacks.ReduceLROnPlateau(
+        monitor="val_loss", factor=0.5, patience=4, min_lr=1e-5, verbose=0
+    )
     history = model.fit(
-        X_train,
-        y_train,
-        validation_split=0.2,
+        X_tr,
+        y_tr,
+        validation_data=(X_val, y_val),
         epochs=epochs,
         batch_size=batch_size,
-        callbacks=[es],
+        callbacks=[es, rlrop],
+        shuffle=False,
         verbose=0,
     )
 
@@ -149,6 +163,8 @@ def build_slot_profile(history_df, days=14):
     grouped = recent.groupby("slot", as_index=False).agg(
         pm10=("pm10", "mean"),
         pm25=("pm25", "mean"),
+        pm10_std=("pm10", "std"),
+        pm25_std=("pm25", "std"),
     )
 
     profile = {}
@@ -156,6 +172,33 @@ def build_slot_profile(history_df, days=14):
         profile[int(row["slot"])] = {
             "pm10": float(row["pm10"]),
             "pm25": float(row["pm25"]),
+            "pm10_std": float(0.0 if pd.isna(row["pm10_std"]) else row["pm10_std"]),
+            "pm25_std": float(0.0 if pd.isna(row["pm25_std"]) else row["pm25_std"]),
+        }
+    return profile
+
+
+def build_slot_delta_profile(history_df, days=21):
+    rows_needed = max(48 * days, 96)
+    recent = history_df.tail(rows_needed).copy()
+    if recent.empty:
+        return {}
+
+    recent = recent.reset_index().rename(columns={"index": "datetime"})
+    recent["slot"] = recent["datetime"].dt.hour * 2 + (recent["datetime"].dt.minute // 30)
+    recent["pm10_delta"] = recent["pm10"].diff().fillna(0.0)
+    recent["pm25_delta"] = recent["pm25"].diff().fillna(0.0)
+
+    grouped = recent.groupby("slot", as_index=False).agg(
+        pm10_delta=("pm10_delta", "mean"),
+        pm25_delta=("pm25_delta", "mean"),
+    )
+
+    profile = {}
+    for _, row in grouped.iterrows():
+        profile[int(row["slot"])] = {
+            "pm10_delta": float(row["pm10_delta"]),
+            "pm25_delta": float(row["pm25_delta"]),
         }
     return profile
 
@@ -163,6 +206,9 @@ def build_slot_profile(history_df, days=14):
 def main():
     args = parse_args()
     payload = load_input(args.input)
+
+    np.random.seed(42)
+    tf.random.set_seed(42)
 
     t0 = time.time()
     rows = payload.get("rows", [])
@@ -274,9 +320,12 @@ def main():
 
     history_df = df.copy()
     slot_profile = build_slot_profile(history_df, days=14)
+    slot_delta_profile = build_slot_delta_profile(history_df, days=21)
     alpha_start = 0.75
-    alpha_min = 0.45
-    alpha_decay = 0.0005
+    alpha_min = 0.52
+    alpha_decay = 0.010
+    delta_weight = 0.35
+    variance_weight = 0.12
 
     cursor = forecast_start
     gen_start = time.time()
@@ -289,13 +338,25 @@ def main():
         slot = cursor.hour * 2 + (cursor.minute // 30)
         slot_base = slot_profile.get(slot)
 
-        alpha = max(alpha_start - (alpha_decay * forecast_step), alpha_min)
+        alpha = max(alpha_start - (alpha_decay * (forecast_step % 48)), alpha_min)
         if slot_base:
             pm10_pred = (alpha * pm10_model) + ((1.0 - alpha) * slot_base["pm10"])
             pm25_pred = (alpha * pm25_model) + ((1.0 - alpha) * slot_base["pm25"])
+
+            delta_base = slot_delta_profile.get(slot)
+            if delta_base:
+                pm10_pred += delta_weight * delta_base["pm10_delta"]
+                pm25_pred += delta_weight * delta_base["pm25_delta"]
+
+            wave = np.sin((2.0 * np.pi * (forecast_step % 48)) / 48.0)
+            pm10_pred += wave * variance_weight * slot_base.get("pm10_std", 0.0)
+            pm25_pred += wave * variance_weight * slot_base.get("pm25_std", 0.0)
         else:
             pm10_pred = pm10_model
             pm25_pred = pm25_model
+
+        pm10_pred = float(max(pm10_pred, 0.0))
+        pm25_pred = float(max(pm25_pred, 0.0))
 
         preds.append(
             {
@@ -320,6 +381,7 @@ def main():
                 "pm25_predicted": float(pm25_pred),
                 "alpha": float(alpha),
                 "slot": int(slot),
+                "slot_has_profile": bool(slot_base is not None),
             }
         )
         cursor += pd.Timedelta(minutes=30)
@@ -458,7 +520,10 @@ def main():
                     "alpha_start": alpha_start,
                     "alpha_min": alpha_min,
                     "alpha_decay": alpha_decay,
+                    "delta_weight": delta_weight,
+                    "variance_weight": variance_weight,
                     "slot_profile_days": 14,
+                    "slot_delta_days": 21,
                 },
                 "daily_stats": daily_stats,
             },

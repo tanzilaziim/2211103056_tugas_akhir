@@ -94,6 +94,7 @@ const initAdminPredictionChart = () => {
         month: '',
         showDateMenu: false,
         availableDates: [],
+        availableMonths: [],
         hasActiveRun: false,
         pm10Series: [],
         pm25Series: [],
@@ -259,6 +260,10 @@ const initAdminPredictionChart = () => {
         }
 
         chartDateLabel.textContent = state.month ? formatIdDate(`${state.month}-01`).replace(/^\d+\s/, '') : '-';
+        if (state.availableMonths.length) {
+            monthInput.min = state.availableMonths[0];
+            monthInput.max = state.availableMonths[state.availableMonths.length - 1];
+        }
         monthInput.value = state.month || '';
         chartDatePrev.disabled = true;
         chartDateNext.disabled = true;
@@ -319,10 +324,11 @@ const initAdminPredictionChart = () => {
         const data = payload?.data || {};
         state.hasActiveRun = !!data.active_run;
         state.availableDates = Array.isArray(data.dates) ? data.dates : [];
+        state.availableMonths = Array.isArray(data.months) ? data.months : [];
         state.chartDate = data?.defaults?.single || state.availableDates[0] || '';
         state.rangeStart = data?.defaults?.start || state.chartDate;
         state.rangeEnd = data?.defaults?.end || state.chartDate;
-        state.month = data?.defaults?.month || (state.chartDate ? state.chartDate.slice(0, 7) : '');
+        state.month = data?.defaults?.month || state.availableMonths[0] || (state.chartDate ? state.chartDate.slice(0, 7) : '');
     };
 
     const loadChartData = async () => {
@@ -393,6 +399,7 @@ const initAdminPredictionChart = () => {
 
     monthApplyBtn.addEventListener('click', async () => {
         if (!monthInput.value) return;
+        if (state.availableMonths.length && !state.availableMonths.includes(monthInput.value)) return;
         state.month = monthInput.value;
         state.showDateMenu = false;
         chartDateMenu.classList.add('hidden');

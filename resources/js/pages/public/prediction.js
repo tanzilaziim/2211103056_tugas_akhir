@@ -107,6 +107,7 @@ const initPredictionPage = () => {
         rangeEnd: '',
         month: '',
         availableDates: [],
+        availableMonths: [],
         activeTab: 'pm10',
         labels: [],
         pm10Series: [],
@@ -269,6 +270,10 @@ const initPredictionPage = () => {
         }
 
         dateDisplay.textContent = state.month ? formatMonthId(state.month) : '-';
+        if (state.availableMonths.length) {
+            monthInput.min = state.availableMonths[0];
+            monthInput.max = state.availableMonths[state.availableMonths.length - 1];
+        }
         monthInput.value = state.month || '';
     };
 
@@ -357,10 +362,11 @@ const initPredictionPage = () => {
         const data = payload?.data || {};
         state.hasActiveRun = !!data.active_run;
         state.availableDates = Array.isArray(data.dates) ? data.dates : [];
+        state.availableMonths = Array.isArray(data.months) ? data.months : [];
         state.date = data?.defaults?.single || state.availableDates[0] || '';
         state.rangeStart = data?.defaults?.start || state.date;
         state.rangeEnd = data?.defaults?.end || state.date;
-        state.month = data?.defaults?.month || (state.date ? state.date.slice(0, 7) : '');
+        state.month = data?.defaults?.month || state.availableMonths[0] || (state.date ? state.date.slice(0, 7) : '');
         renderAccessibleRange();
     };
 
@@ -442,6 +448,9 @@ const initPredictionPage = () => {
 
     monthApplyBtn.addEventListener('click', async () => {
         if (!monthInput.value) return;
+        if (state.availableMonths.length && !state.availableMonths.includes(monthInput.value)) {
+            return;
+        }
         state.month = monthInput.value;
         dateMenu.classList.add('hidden');
         renderDateMenu();

@@ -161,6 +161,10 @@ const initAdminPredictionData = () => {
         }
 
         dateLabel.textContent = state.month ? formatIdDate(`${state.month}-01`).replace(/^\d+\s/, '') : '-';
+        if (state.availableMonths.length) {
+            monthInput.min = state.availableMonths[0];
+            monthInput.max = state.availableMonths[state.availableMonths.length - 1];
+        }
         monthInput.value = state.month || '';
         datePrev.disabled = true;
         dateNext.disabled = true;
@@ -319,6 +323,7 @@ const initAdminPredictionData = () => {
 
     monthApplyBtn.addEventListener('click', async () => {
         if (!monthInput.value) return;
+        if (state.availableMonths.length && !state.availableMonths.includes(monthInput.value)) return;
         state.month = monthInput.value;
         state.page = 1;
         state.showDateMenu = false;
